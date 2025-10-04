@@ -1,0 +1,7 @@
+2025-09-21 23:34:40,218 - INFO - Logging inicializado (nivel=INFO)
+2025-09-21 23:34:40,218 - INFO - Archivo de log: logs/debug_20250921_233440.log
+2025-09-21 23:34:40,218 - INFO -   ndo el programa...
+2025-09-21 23:34:40,218 - INFO - Fecha y hora de inicio: 2025-09-21 23:34:40
+2025-09-21 23:34:40,977 - INFO - Interfaz gráfica lanzada exitosamente
+2025-09-21 23:34:43,056 - INFO - Navegando a pantalla de Entrevista
+2025-09-21 23:34:44,183 - ERROR - Error al abrir entrevista: name 'self' is not defined

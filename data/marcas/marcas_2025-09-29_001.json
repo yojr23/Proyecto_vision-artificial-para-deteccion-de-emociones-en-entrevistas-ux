@@ -1,0 +1,27 @@
+{
+  "entrevista_id": "2025-09-29_001",
+  "archivo_video": "data/videos_originales/interview_2025-09-29_001.mp4",
+  "marcas": [
+    {
+      "entrevista_id": "2025-09-29_001",
+      "pregunta_id": 1,
+      "inicio": 3.1073379516601562,
+      "fin": 20.814048051834106,
+      "nota": ""
+    },
+    {
+      "entrevista_id": "2025-09-29_001",
+      "pregunta_id": 2,
+      "inicio": 64.27020692825317,
+      "fin": 65.16377091407776,
+      "nota": "fsdfsdfsdfsdf"
+    },
+    {
+      "entrevista_id": "2025-09-29_001",
+      "pregunta_id": 3,
+      "inicio": 70.16457295417786,
+      "fin": 73.84542107582092,
+      "nota": "dfwefgwef"
+    }
+  ]
+}

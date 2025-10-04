@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+    </style>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+<body>
+    <div class="controls">
+        <h3 style="margin-bottom: 20px; color: #333;">🎛️ Controles Interactivos</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div class="control-group">
+                <label for="humedadSlider">Humedad del Suelo (%)</label>
+                <input type="range" id="humedadSlider" class="slider" min="0" max="100" value="75">
+                <div class="value-display" id="humedadValue">75%</div>
+            </div>
+            <div class="control-group">
+                <label for="temperaturaSlider">Temperatura (°C)</label>
+                <input type="range" id="temperaturaSlider" class="slider" min="15" max="45" value="28">
+                <div class="value-display" id="temperaturaValue">28°C</div>
+            </div>
+            <div class="control-group">
+                <label for="lluviaSlider">Probabilidad de Lluvia (%)</label>
+                <input type="range" id="lluviaSlider" class="slider" min="0" max="100" value="15">
+                <div class="value-display" id="lluviaValue">15%</div>
+            </div>
+            <div class="control-group">
+                <label for="vientoSlider">Velocidad del Viento (km/h)</label>
+                <input type="range" id="vientoSlider" class="slider" min="0" max="50" value="12">
+                <div class="value-display" id="vientoValue">12 km/h</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Inicializar QWebChannel
+        let bridge = null;
+        new QWebChannel(qt.webChannelTransport, function(channel) {
+            console.log("QWebChannel inicializado");
+            bridge = channel.objects.bridge;
+            if (!bridge) {
+                console.error("Error: bridge no está definido");
+                return;
+            }
+            // Actualizar sliders con datos del puente
+            bridge.updateData.connect(function(data) {
+                console.log("Recibido updateData:", data);
+                document.getElementById('humedadSlider').value = data.humedad;
+                document.getElementById('temperaturaSlider').value = data.temperatura;
+                document.getElementById('lluviaSlider').value = data.lluvia;
+                document.getElementById('vientoSlider').value = data.viento;
+                actualizarDisplays();
+            });
+        });
+
+        // Elementos del DOM
+        const humedadSlider = document.getElementById('humedadSlider');
+        const temperaturaSlider = document.getElementById('temperaturaSlider');
+        const lluviaSlider = document.getElementById('lluviaSlider');
+        const vientoSlider = document.getElementById('vientoSlider');
+
+        // Función para actualizar displays
+        function actualizarDisplays() {
+            console.log("Actualizando displays:", {
+                humedad: humedadSlider.value,
+                temperatura: temperaturaSlider.value,
+                lluvia: lluviaSlider.value,
+                viento: vientoSlider.value
+            });
+            document.getElementById('humedadValue').textContent = humedadSlider.value + '%';
+            document.getElementById('temperaturaValue').textContent = temperaturaSlider.value + '°C';
+            document.getElementById('lluviaValue').textContent = lluviaSlider.value + '%';
+            document.getElementById('vientoValue').textContent = vientoSlider.value + ' km/h';
+        }
+
+        // Enviar valores al puente
+        function enviarValores() {
+            if (bridge) {
+                console.log("Enviando valores al puente:", {
+                    humedad: parseInt(humedadSlider.value),
+                    temperatura: parseInt(temperaturaSlider.value),
+                    lluvia: parseInt(lluviaSlider.value),
+                    viento: parseInt(vientoSlider.value)
+                });
+                bridge.setValues(
+                    parseInt(humedadSlider.value),
+                    parseInt(temperaturaSlider.value),
+                    parseInt(lluviaSlider.value),
+                    parseInt(vientoSlider.value)
+                );
+            } else {
+                console.error("Error: bridge no está inicializado");
+            }
+        }
+
+        // Event listeners para los sliders
+        humedadSlider.addEventListener('input', () => {
+            actualizarDisplays();
+            enviarValores();
+        });
+        temperaturaSlider.addEventListener('input', () => {
+            actualizarDisplays();
+            enviarValores();
+        });
+        lluviaSlider.addEventListener('input', () => {
+            actualizarDisplays();
+            enviarValores();
+        });
+        vientoSlider.addEventListener('input', () => {
+            actualizarDisplays();
+            enviarValores();
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM cargado, inicializando controles");
+            actualizarDisplays();
+            enviarValores();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .interfaces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .interface-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .interface-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .interface-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722);
+        }
+
+        .interface-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* INTERFAZ 1: SEMÁFORO */
+        .semaforo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .semaforo {
+            width: 120px;
+            height: 300px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 60px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .semaforo::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: #666;
+            border-radius: 50%;
+        }
+
+        .luz {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            border: 3px solid rgba(255,255,255,0.1);
+        }
+
+        .luz::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 25px;
+            height: 25px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .luz.verde { background: radial-gradient(circle at 30% 30%, #81C784, #4CAF50); }
+        .luz.amarillo { background: radial-gradient(circle at 30% 30%, #FFD54F, #FFC107); }
+        .luz.rojo { background: radial-gradient(circle at 30% 30%, #E57373, #F44336); }
+
+        .luz.activa {
+            box-shadow: 0 0 30px currentColor;
+            transform: scale(1.1);
+        }
+
+        .luz.verde.activa { color: #4CAF50; }
+        .luz.amarillo.activa { color: #FFC107; }
+        .luz.rojo.activa { color: #F44336; }
+
+        .luz.inactiva {
+            background: #555 !important;
+            opacity: 0.3;
+        }
+
+        .semaforo-info {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .humedad-nivel {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .humedad-texto {
+            font-size: 1.1em;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        /* INTERFAZ 2: ELEMENTOS VISUALES */
+        .visual-elements {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .elemento-visual {
+            text-align: center;
+            padding: 15px;
+            border-radius: 15px;
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            transition: all 0.3s ease;
+        }
+
+        .elemento-visual:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .gota {
+            width: 60px;
+            height: 80px;
+            position: relative;
+            margin: 0 auto 10px;
+            cursor: pointer;
+        }
+
+        .gota-container {
+            width: 60px;
+            height: 80px;
+            border: 3px solid #2196F3;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(145deg, #f0f8ff, #e1f4fd);
+        }
+
+        .gota-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, #1976D2, #42A5F5);
+            transition: height 0.8s ease;
+            border-radius: 0 0 50% 50%;
+        }
+
+        .sol {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #FFF176, #FF9800);
+            border-radius: 50%;
+            position: relative;
+            animation: rotar 20s linear infinite;
+            margin: 10px auto;
+        }
+
+        .sol::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: -15px;
+            right: -15px;
+            bottom: -15px;
+            background: 
+                linear-gradient(0deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(45deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(90deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(135deg, transparent 40%, #FFF176 45%, transparent 50%);
+            border-radius: 50%;
+        }
+
+        .nube {
+            width: 70px;
+            height: 40px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 40px;
+            position: relative;
+            margin: 15px auto;
+        }
+
+        .nube::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 50%;
+        }
+
+        .nube::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 50%;
+        }
+
+        @keyframes rotar {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* INTERFAZ 3: TABLA SIMPLIFICADA */
+        .tabla-simple {
+            background: linear-gradient(145deg, #f8f9fa, #ffffff);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .tabla-row {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tabla-row:hover {
+            background: linear-gradient(90deg, rgba(76,175,80,0.1), transparent);
+            transform: translateX(5px);
+        }
+
+        .tabla-row:last-child {
+            border-bottom: none;
+        }
+
+        .tabla-icon {
+            font-size: 2.5em;
+            margin-right: 20px;
+            width: 60px;
+            text-align: center;
+        }
+
+        .tabla-content {
+            flex: 1;
+        }
+
+        .tabla-label {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .tabla-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .tabla-unit {
+            font-size: 1.2em;
+            color: #888;
+            font-weight: normal;
+        }
+
+        /* CONTROLES */
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+
+        .description {
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border-left: 4px solid #4CAF50;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <!--
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Interfaces de Monitoreo Agrícola</h1>
+            <p>Diseño UX para agricultoras con diferentes niveles de alfabetización</p>
+        </div>
+        -->
+        <div class="interfaces-grid">
+            <!-- INTERFAZ 1: SEMÁFORO -->
+            <div class="interface-card" id="carta-semaforo">
+                <div class="interface-title">
+                    🚦 Interfaz 1: Semáforo de Colores
+                </div>
+                
+                <div class="semaforo-container">
+                    <div class="semaforo" id="semaforo1">
+                        <div class="luz verde" id="luzVerde1"></div>
+                        <div class="luz amarillo" id="luzAmarillo1"></div>
+                        <div class="luz rojo" id="luzRojo1"></div>
+                    </div>
+                    <div class="semaforo" id="semaforo2" style="margin: 0 30px;">
+                        <div class="luz verde" id="luzVerde2"></div>
+                        <div class="luz amarillo" id="luzAmarillo2"></div>
+                        <div class="luz rojo" id="luzRojo2"></div>
+                    </div>
+                    <div class="semaforo" id="semaforo3">
+                        <div class="luz verde" id="luzVerde3"></div>
+                        <div class="luz amarillo" id="luzAmarillo3"></div>
+                        <div class="luz rojo" id="luzRojo3"></div>
+                    </div>
+                </div>
+
+                <div class="semaforo-info">
+                    <div class="humedad-nivel" id="humedadNivel">75%</div>
+                    <div class="humedad-texto" id="humedadTexto">Humedad Óptima</div>
+                </div>
+
+                
+            </div>
+
+            <!-- INTERFAZ 2: ELEMENTOS VISUALES -->
+            <div class="interface-card" id="carta-visuales">
+                <div class="interface-title">
+                    💧 Interfaz 2: Elementos Visuales
+                </div>
+
+                <div class="visual-elements">
+                    <div class="elemento-visual">
+                        <div class="gota">
+                            <div class="gota-container">
+                                <div class="gota-fill" id="gotaFill"></div>
+                            </div>
+                        </div>
+                        <div>Humedad</div>
+                        <div id="humedadVisual">75%</div>
+                    </div>
+
+                    <div class="elemento-visual">
+                        <div class="sol" id="solIcon"></div>
+                        <div>Temperatura</div>
+                        <div id="temperaturaVisual">28°C</div>
+                    </div>
+
+                    <div class="elemento-visual">
+                        <div class="nube" id="nubeIcon"></div>
+                        <div>Clima</div>
+                        <div id="climaVisual">Nublado</div>
+                    </div>
+                </div>
+
+                
+            </div>
+
+            <!-- INTERFAZ 3: TABLA SIMPLIFICADA -->
+            <div class="interface-card" id="carta-tabla">
+                <div class="interface-title">
+                    📊 Interfaz 3: Tabla Simplificada
+                </div>
+
+                <div class="tabla-simple">
+                    <div class="tabla-row">
+                        <div class="tabla-icon">💧</div>
+                        <div class="tabla-content">
+                            <div class="tabla-label">Humedad del Suelo</div>
+                            <div class="tabla-value" id="humedadTabla">75<span class="tabla-unit">%</span></div>
+                        </div>
+                    </div>
+
+                    <div class="tabla-row">
+                        <div class="tabla-icon">🌡️</div>
+                        <div class="tabla-content">
+                            <div class="tabla-label">Temperatura</div>
+                            <div class="tabla-value" id="temperaturaTabla">28<span class="tabla-unit">°C</span></div>
+                        </div>
+                    </div>
+
+                    <div class="tabla-row">
+                        <div class="tabla-icon">🌧️</div>
+                        <div class="tabla-content">
+                            <div class="tabla-label">Probabilidad de Lluvia</div>
+                            <div class="tabla-value" id="lluviaTabla">15<span class="tabla-unit">%</span></div>
+                        </div>
+                    </div>
+
+                    <div class="tabla-row">
+                        <div class="tabla-icon">🌬️</div>
+                        <div class="tabla-content">
+                            <div class="tabla-label">Viento</div>
+                            <div class="tabla-value" id="vientoTabla">12<span class="tabla-unit">km/h</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                
+            </div>
+        </div>
+
+    <!-- CONTROLES INTERACTIVOS -->
+    <div class="controls">
+            <h3 style="margin-bottom: 20px; color: #333;">🎛️ Controles Interactivos - Simula diferentes condiciones</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div class="control-group">
+                    <label for="humedadSlider">Humedad del Suelo (%)</label>
+                    <input type="range" id="humedadSlider" class="slider" min="0" max="100" value="75">
+                    <div class="value-display" id="humedadValue">75%</div>
+                </div>
+
+                <div class="control-group">
+                    <label for="temperaturaSlider">Temperatura (°C)</label>
+                    <input type="range" id="temperaturaSlider" class="slider" min="15" max="45" value="28">
+                    <div class="value-display" id="temperaturaValue">28°C</div>
+                </div>
+
+                <div class="control-group">
+                    <label for="lluviaSlider">Probabilidad de Lluvia (%)</label>
+                    <input type="range" id="lluviaSlider" class="slider" min="0" max="100" value="15">
+                    <div class="value-display" id="lluviaValue">15%</div>
+                </div>
+
+                <div class="control-group">
+                    <label for="vientoSlider">Velocidad del Viento (km/h)</label>
+                    <input type="range" id="vientoSlider" class="slider" min="0" max="50" value="12">
+                    <div class="value-display" id="vientoValue">12 km/h</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar solo una carta a la vez
+        function mostrarCarta(nombre) {
+            const ids = ["carta-semaforo", "carta-visuales", "carta-tabla"];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = (id === nombre) ? "block" : "none";
+            });
+        }
+
+        // Variables globales
+        let humedad = 75;
+        let temperatura = 28;
+        let lluvia = 15;
+        let viento = 12;
+
+        // Elementos del DOM
+        const humedadSlider = document.getElementById('humedadSlider');
+        const temperaturaSlider = document.getElementById('temperaturaSlider');
+        const lluviaSlider = document.getElementById('lluviaSlider');
+        const vientoSlider = document.getElementById('vientoSlider');
+
+        // Función para actualizar el semáforo
+        function actualizarSemaforo() {
+            for (let i = 1; i <= 3; i++) {
+                const luzVerde = document.getElementById('luzVerde' + i);
+                const luzAmarillo = document.getElementById('luzAmarillo' + i);
+                const luzRojo = document.getElementById('luzRojo' + i);
+                // Resetear todas las luces
+                [luzVerde, luzAmarillo, luzRojo].forEach(luz => {
+                    luz.classList.remove('activa', 'inactiva');
+                    luz.classList.add('inactiva');
+                });
+                // Activar la luz correspondiente
+                if (humedad >= 60) {
+                    luzVerde.classList.remove('inactiva');
+                    luzVerde.classList.add('activa');
+                } else if (humedad >= 30) {
+                    luzAmarillo.classList.remove('inactiva');
+                    luzAmarillo.classList.add('activa');
+                } else {
+                    luzRojo.classList.remove('inactiva');
+                    luzRojo.classList.add('activa');
+                }
+            }
+            // Solo el primer semáforo muestra el texto y valor
+            const humedadNivel = document.getElementById('humedadNivel');
+            const humedadTexto = document.getElementById('humedadTexto');
+            if (humedad >= 60) {
+                humedadTexto.textContent = 'Humedad Óptima';
+                humedadTexto.style.background = '#4CAF50';
+                humedadTexto.style.color = 'white';
+            } else if (humedad >= 30) {
+                humedadTexto.textContent = 'Requiere Atención';
+                humedadTexto.style.background = '#FFC107';
+                humedadTexto.style.color = 'white';
+            } else {
+                humedadTexto.textContent = 'Suelo Seco - Riesgo';
+                humedadTexto.style.background = '#F44336';
+                humedadTexto.style.color = 'white';
+            }
+            humedadNivel.textContent = humedad + '%';
+        }
+
+        // Función para actualizar elementos visuales
+        function actualizarElementosVisuales() {
+            const gotaFill = document.getElementById('gotaFill');
+            const humedadVisual = document.getElementById('humedadVisual');
+            const temperaturaVisual = document.getElementById('temperaturaVisual');
+            const climaVisual = document.getElementById('climaVisual');
+
+            // Actualizar gota de humedad
+            gotaFill.style.height = humedad + '%';
+            humedadVisual.textContent = humedad + '%';
+            temperaturaVisual.textContent = temperatura + '°C';
+
+            // Actualizar texto del clima basado en lluvia
+            if (lluvia > 70) {
+                climaVisual.textContent = 'Lluvia';
+            } else if (lluvia > 30) {
+                climaVisual.textContent = 'Nublado';
+            } else {
+                climaVisual.textContent = 'Soleado';
+            }
+        }
+
+        // Función para actualizar tabla
+        function actualizarTabla() {
+            document.getElementById('humedadTabla').innerHTML = humedad + '<span class="tabla-unit">%</span>';
+            document.getElementById('temperaturaTabla').innerHTML = temperatura + '<span class="tabla-unit">°C</span>';
+            document.getElementById('lluviaTabla').innerHTML = lluvia + '<span class="tabla-unit">%</span>';
+            document.getElementById('vientoTabla').innerHTML = viento + '<span class="tabla-unit">km/h</span>';
+        }
+
+        // Función para actualizar displays de valores
+        function actualizarDisplays() {
+            document.getElementById('humedadValue').textContent = humedad + '%';
+            document.getElementById('temperaturaValue').textContent = temperatura + '°C';
+            document.getElementById('lluviaValue').textContent = lluvia + '%';
+            document.getElementById('vientoValue').textContent = viento + ' km/h';
+        }
+
+        // Event listeners para los sliders
+        humedadSlider.addEventListener('input', function() {
+            humedad = parseInt(this.value);
+            actualizarTodo();
+        });
+
+        temperaturaSlider.addEventListener('input', function() {
+            temperatura = parseInt(this.value);
+            actualizarTodo();
+        });
+
+        lluviaSlider.addEventListener('input', function() {
+            lluvia = parseInt(this.value);
+            actualizarTodo();
+        });
+
+        vientoSlider.addEventListener('input', function() {
+            viento = parseInt(this.value);
+            actualizarTodo();
+        });
+
+        // Función para actualizar todo
+        function actualizarTodo() {
+            actualizarSemaforo();
+            actualizarElementosVisuales();
+            actualizarTabla();
+            actualizarDisplays();
+        }
+
+        // Animación automática para demostración
+        function demoAutomatica() {
+            setInterval(() => {
+                // Variar ligeramente los valores para mostrar dinamismo
+                const variacion = Math.random() * 10 - 5; // -5 a +5
+                
+                if (Math.random() > 0.7) { // 30% de probabilidad de cambio
+                    const nuevoValor = Math.max(0, Math.min(100, humedad + variacion));
+                    humedadSlider.value = nuevoValor;
+                    humedad = parseInt(nuevoValor);
+                    actualizarTodo();
+                }
+            }, 3000);
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ocultar todas las cartas menos la primera
+            mostrarCarta("carta-semaforo");
+            actualizarTodo();
+            // demoAutomatica(); // Descomenta para demo automática
+        });
+
+        // Efectos de hover para elementos interactivos
+        for (let i = 1; i <= 3; i++) {
+            document.getElementById('luzVerde' + i).addEventListener('click', function() {
+                humedadSlider.value = 75;
+                humedad = 75;
+                actualizarTodo();
+            });
+            document.getElementById('luzAmarillo' + i).addEventListener('click', function() {
+                humedadSlider.value = 45;
+                humedad = 45;
+                actualizarTodo();
+            });
+            document.getElementById('luzRojo' + i).addEventListener('click', function() {
+                humedadSlider.value = 15;
+                humedad = 15;
+                actualizarTodo();
+            });
+        }
+
+        // Efecto de click en la gota
+        document.querySelector('.gota').addEventListener('click', function() {
+            // Generar valor aleatorio
+            const nuevoValor = Math.floor(Math.random() * 100);
+            humedadSlider.value = nuevoValor;
+            humedad = nuevoValor;
+            actualizarTodo();
+        });
+    </script>
+</body>
+</html>

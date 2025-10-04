@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+
+        .interfaces-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .interface-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .interface-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .interface-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722);
+        }
+
+        .interface-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* INTERFAZ 1: SEMÁFORO */
+        .semaforo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            gap: 30px;
+        }
+
+        .semaforo {
+            width: 120px;
+            height: 300px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 60px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .semaforo::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: #666;
+            border-radius: 50%;
+        }
+
+        .semaforo-label {
+            position: absolute;
+            top: 10px;
+            font-size: 1em;
+            color: white;
+            text-align: center;
+            width: 100%;
+        }
+
+        .luz {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            border: 3px solid rgba(255,255,255,0.1);
+        }
+
+        .luz::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 25px;
+            height: 25px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .luz.verde { background: radial-gradient(circle at 30% 30%, #81C784, #4CAF50); }
+        .luz.amarillo { background: radial-gradient(circle at 30% 30%, #FFD54F, #FFC107); }
+        .luz.rojo { background: radial-gradient(circle at 30% 30%, #E57373, #F44336); }
+
+        .luz.activa {
+            box-shadow: 0 0 30px currentColor;
+            transform: scale(1.1);
+        }
+
+        .luz.verde.activa { color: #4CAF50; }
+        .luz.amarillo.activa { color: #FFC107; }
+        .luz.rojo.activa { color: #F44336; }
+
+        .luz.inactiva {
+            background: #555 !important;
+            opacity: 0.3;
+        }
+
+        .semaforo-info {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .semaforo-nivel {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .semaforo-texto {
+            font-size: 1.1em;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        /* INTERFAZ 2: ELEMENTOS VISUALES */
+        .visual-elements {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .elemento-visual {
+            text-align: center;
+            padding: 15px;
+            border-radius: 15px;
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            transition: all 0.3s ease;
+        }
+
+        .elemento-visual:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10x20px rgba(0,0,0,0.1);
+        }
+
+        .gota {
+            width: 60px;
+            height: 80px;
+            position: relative;
+            margin: 0 auto 10px;
+            cursor: pointer;
+        }
+
+        .gota-container {
+            width: 60px;
+            height: 80px;
+            border: 3px solid #2196F3;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(145deg, #f0f8ff, #e1f4fd);
+        }
+
+        .gota-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, #1976D2, #42A5F5);
+            transition: height 0.8s ease;
+            border-radius: 0 0 50% 50%;
+        }
+
+        .sol {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #FFF176, #FF9800);
+            border-radius: 50%;
+            position: relative;
+            animation: rotar 20s linear infinite;
+            margin: 10px auto;
+        }
+
+        .sol::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: -15px;
+            right: -15px;
+            bottom: -15px;
+            background: 
+                linear-gradient(0deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(45deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(90deg, transparent 40%, #FFF176 45%, transparent 50%),
+                linear-gradient(135deg, transparent 40%, #FFF176 45%, transparent 50%);
+            border-radius: 50%;
+        }
+
+        .nube {
+            width: 70px;
+            height: 40px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 40px;
+            position: relative;
+            margin: 15px auto;
+        }
+
+        .nube::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 50%;
+        }
+
+        .nube::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(145deg, #E0E0E0, #BDBDBD);
+            border-radius: 50%;
+        }
+
+        @keyframes rotar {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* INTERFAZ 3: TABLA SIMPLIFICADA */
+        .tabla-simple {
+            background: linear-gradient(145deg, #f8f9fa, #ffffff);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .tabla-row {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tabla-row:hover {
+            background: linear-gradient(90deg, rgba(76,175,80,0.1), transparent);
+            transform: translateX(5px);
+        }
+
+        .tabla-row:last-child {
+            border-bottom: none;
+        }
+
+        .tabla-icon {
+            font-size: 2.5em;
+            margin-right: 20px;
+            width: 60px;
+            text-align: center;
+        }
+
+        .tabla-content {
+            flex: 1;
+        }
+
+        .tabla-label {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .tabla-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .tabla-unit {
+            font-size: 1.2em;
+            color: #888;
+            font-weight: normal;
+        }
+    </style>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+<body>
+    <div class="interfaces-grid">
+        <!-- INTERFAZ 1: SEMÁFORO -->
+        <div class="interface-card" id="carta-semaforo">
+            <div class="interface-title">
+                🚦 Interfaz 1: Semáforo de Colores
+            </div>
+            <div class="semaforo-container">
+                <div class="semaforo" id="semaforo-humedad">
+                    <div class="semaforo-label">Humedad</div>
+                    <div class="luz verde" id="luzVerdeHumedad"></div>
+                    <div class="luz amarillo" id="luzAmarilloHumedad"></div>
+                    <div class="luz rojo" id="luzRojoHumedad"></div>
+                </div>
+                <div class="semaforo" id="semaforo-temperatura">
+                    <div class="semaforo-label">Temperatura</div>
+                    <div class="luz verde" id="luzVerdeTemperatura"></div>
+                    <div class="luz amarillo" id="luzAmarilloTemperatura"></div>
+                    <div class="luz rojo" id="luzRojoTemperatura"></div>
+                </div>
+                <div class="semaforo" id="semaforo-lluvia">
+                    <div class="semaforo-label">Lluvia</div>
+                    <div class="luz verde" id="luzVerdeLluvia"></div>
+                    <div class="luz amarillo" id="luzAmarilloLluvia"></div>
+                    <div class="luz rojo" id="luzRojoLluvia"></div>
+                </div>
+            </div>
+            <div class="semaforo-info">
+                <div class="semaforo-nivel" id="humedadNivel">75%</div>
+                <div class="semaforo-texto" id="humedadTexto">Humedad Óptima</div>
+                <div class="semaforo-nivel" id="temperaturaNivel">28°C</div>
+                <div class="semaforo-texto" id="temperaturaTexto">Temperatura Óptima</div>
+                <div class="semaforo-nivel" id="lluviaNivel">15%</div>
+                <div class="semaforo-texto" id="lluviaTexto">Sin Lluvia</div>
+            </div>
+        </div>
+
+        <!-- INTERFAZ 2: ELEMENTOS VISUALES -->
+        <div class="interface-card" id="carta-visuales">
+            <div class="interface-title">
+                💧 Interfaz 2: Elementos Visuales
+            </div>
+            <div class="visual-elements">
+                <div class="elemento-visual">
+                    <div class="gota">
+                        <div class="gota-container">
+                            <div class="gota-fill" id="gotaFill"></div>
+                        </div>
+                    </div>
+                    <div>Humedad</div>
+                    <div id="humedadVisual">75%</div>
+                </div>
+                <div class="elemento-visual">
+                    <div class="sol" id="solIcon"></div>
+                    <div>Temperatura</div>
+                    <div id="temperaturaVisual">28°C</div>
+                </div>
+                <div class="elemento-visual">
+                    <div class="nube" id="nubeIcon"></div>
+                    <div>Clima</div>
+                    <div id="climaVisual">Nublado</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERFAZ 3: TABLA SIMPLIFICADA -->
+        <div class="interface-card" id="carta-tabla">
+            <div class="interface-title">
+                📊 Interfaz 3: Tabla Simplificada
+            </div>
+            <div class="tabla-simple">
+                <div class="tabla-row">
+                    <div class="tabla-icon">💧</div>
+                    <div class="tabla-content">
+                        <div class="tabla-label">Humedad del Suelo</div>
+                        <div class="tabla-value" id="humedadTabla">75<span class="tabla-unit">%</span></div>
+                    </div>
+                </div>
+                <div class="tabla-row">
+                    <div class="tabla-icon">🌡️</div>
+                    <div class="tabla-content">
+                        <div class="tabla-label">Temperatura</div>
+                        <div class="tabla-value" id="temperaturaTabla">28<span class="tabla-unit">°C</span></div>
+                    </div>
+                </div>
+                <div class="tabla-row">
+                    <div class="tabla-icon">🌧️</div>
+                    <div class="tabla-content">
+                        <div class="tabla-label">Probabilidad de Lluvia</div>
+                        <div class="tabla-value" id="lluviaTabla">15<span class="tabla-unit">%</span></div>
+                    </div>
+                </div>
+                <div class="tabla-row">
+                    <div class="tabla-icon">🌬️</div>
+                    <div class="tabla-content">
+                        <div class="tabla-label">Viento</div>
+                        <div class="tabla-value" id="vientoTabla">12<span class="tabla-unit">km/h</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar QWebChannel
+        let bridge = null;
+        new QWebChannel(qt.webChannelTransport, function(channel) {
+            console.log("QWebChannel inicializado en tarjetas.html");
+            bridge = channel.objects.bridge;
+            if (!bridge) {
+                console.error("Error: bridge no está definido");
+                return;
+            }
+            // Actualizar interfaces con datos del puente
+            bridge.updateData.connect(function(data) {
+                console.log("Recibido updateData en tarjetas.html:", data);
+                actualizarTodo(data.humedad, data.temperatura, data.lluvia, data.viento);
+            });
+        });
+
+        // Mostrar solo una carta a la vez
+        function mostrarCarta(nombre) {
+            console.log("Mostrando carta:", nombre);
+            const ids = ["carta-semaforo", "carta-visuales", "carta-tabla"];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = (id === nombre) ? "block" : "none";
+            });
+        }
+
+        // Variables iniciales
+        let humedad = 75;
+        let temperatura = 28;
+        let lluvia = 15;
+        let viento = 12;
+
+        // Función para actualizar el semáforo
+        function actualizarSemaforo(humedad, temperatura, lluvia) {
+            // Semáforo de humedad
+            const lucesHumedad = {
+                verde: document.getElementById('luzVerdeHumedad'),
+                amarillo: document.getElementById('luzAmarilloHumedad'),
+                rojo: document.getElementById('luzRojoHumedad')
+            };
+            [lucesHumedad.verde, lucesHumedad.amarillo, lucesHumedad.rojo].forEach(luz => {
+                luz.classList.remove('activa', 'inactiva');
+                luz.classList.add('inactiva');
+            });
+            if (humedad >= 60) {
+                lucesHumedad.verde.classList.remove('inactiva');
+                lucesHumedad.verde.classList.add('activa');
+                document.getElementById('humedadTexto').textContent = 'Humedad Óptima';
+                document.getElementById('humedadTexto').style.background = '#4CAF50';
+                document.getElementById('humedadTexto').style.color = 'white';
+            } else if (humedad >= 30) {
+                lucesHumedad.amarillo.classList.remove('inactiva');
+                lucesHumedad.amarillo.classList.add('activa');
+                document.getElementById('humedadTexto').textContent = 'Requiere Atención';
+                document.getElementById('humedadTexto').style.background = '#FFC107';
+                document.getElementById('humedadTexto').style.color = 'white';
+            } else {
+                lucesHumedad.rojo.classList.remove('inactiva');
+                lucesHumedad.rojo.classList.add('activa');
+                document.getElementById('humedadTexto').textContent = 'Suelo Seco - Riesgo';
+                document.getElementById('humedadTexto').style.background = '#F44336';
+                document.getElementById('humedadTexto').style.color = 'white';
+            }
+            document.getElementById('humedadNivel').textContent = humedad + '%';
+
+            // Semáforo de temperatura
+            const lucesTemperatura = {
+                verde: document.getElementById('luzVerdeTemperatura'),
+                amarillo: document.getElementById('luzAmarilloTemperatura'),
+                rojo: document.getElementById('luzRojoTemperatura')
+            };
+            [lucesTemperatura.verde, lucesTemperatura.amarillo, lucesTemperatura.rojo].forEach(luz => {
+                luz.classList.remove('activa', 'inactiva');
+                luz.classList.add('inactiva');
+            });
+            if (temperatura >= 20 && temperatura <= 30) {
+                lucesTemperatura.verde.classList.remove('inactiva');
+                lucesTemperatura.verde.classList.add('activa');
+                document.getElementById('temperaturaTexto').textContent = 'Temperatura Óptima';
+                document.getElementById('temperaturaTexto').style.background = '#4CAF50';
+                document.getElementById('temperaturaTexto').style.color = 'white';
+            } else if ((temperatura >= 15 && temperatura < 20) || (temperatura > 30 && temperatura <= 35)) {
+                lucesTemperatura.amarillo.classList.remove('inactiva');
+                lucesTemperatura.amarillo.classList.add('activa');
+                document.getElementById('temperaturaTexto').textContent = 'Temperatura Moderada';
+                document.getElementById('temperaturaTexto').style.background = '#FFC107';
+                document.getElementById('temperaturaTexto').style.color = 'white';
+            } else {
+                lucesTemperatura.rojo.classList.remove('inactiva');
+                lucesTemperatura.rojo.classList.add('activa');
+                document.getElementById('temperaturaTexto').textContent = 'Temperatura Extrema';
+                document.getElementById('temperaturaTexto').style.background = '#F44336';
+                document.getElementById('temperaturaTexto').style.color = 'white';
+            }
+            document.getElementById('temperaturaNivel').textContent = temperatura + '°C';
+
+            // Semáforo de lluvia
+            const lucesLluvia = {
+                verde: document.getElementById('luzVerdeLluvia'),
+                amarillo: document.getElementById('luzAmarilloLluvia'),
+                rojo: document.getElementById('luzRojoLluvia')
+            };
+            [lucesLluvia.verde, lucesLluvia.amarillo, lucesLluvia.rojo].forEach(luz => {
+                luz.classList.remove('activa', 'inactiva');
+                luz.classList.add('inactiva');
+            });
+            if (lluvia <= 30) {
+                lucesLluvia.verde.classList.remove('inactiva');
+                lucesLluvia.verde.classList.add('activa');
+                document.getElementById('lluviaTexto').textContent = 'Sin Lluvia';
+                document.getElementById('lluviaTexto').style.background = '#4CAF50';
+                document.getElementById('lluviaTexto').style.color = 'white';
+            } else if (lluvia <= 70) {
+                lucesLluvia.amarillo.classList.remove('inactiva');
+                lucesLluvia.amarillo.classList.add('activa');
+                document.getElementById('lluviaTexto').textContent = 'Lluvia Moderada';
+                document.getElementById('lluviaTexto').style.background = '#FFC107';
+                document.getElementById('lluviaTexto').style.color = 'white';
+            } else {
+                lucesLluvia.rojo.classList.remove('inactiva');
+                lucesLluvia.rojo.classList.add('activa');
+                document.getElementById('lluviaTexto').textContent = 'Lluvia Intensa';
+                document.getElementById('lluviaTexto').style.background = '#F44336';
+                document.getElementById('lluviaTexto').style.color = 'white';
+            }
+            document.getElementById('lluviaNivel').textContent = lluvia + '%';
+        }
+
+        // Función para actualizar elementos visuales
+        function actualizarElementosVisuales(humedad, temperatura, lluvia) {
+            const gotaFill = document.getElementById('gotaFill');
+            const humedadVisual = document.getElementById('humedadVisual');
+            const temperaturaVisual = document.getElementById('temperaturaVisual');
+            const climaVisual = document.getElementById('climaVisual');
+
+            // Actualizar gota de humedad
+            gotaFill.style.height = humedad + '%';
+            humedadVisual.textContent = humedad + '%';
+            temperaturaVisual.textContent = temperatura + '°C';
+
+            // Actualizar texto del clima basado en lluvia
+            if (lluvia > 70) {
+                climaVisual.textContent = 'Lluvia';
+            } else if (lluvia > 30) {
+                climaVisual.textContent = 'Nublado';
+            } else {
+                climaVisual.textContent = 'Soleado';
+            }
+        }
+
+        // Función para actualizar tabla
+        function actualizarTabla(humedad, temperatura, lluvia, viento) {
+            document.getElementById('humedadTabla').innerHTML = humedad + '<span class="tabla-unit">%</span>';
+            document.getElementById('temperaturaTabla').innerHTML = temperatura + '<span class="tabla-unit">°C</span>';
+            document.getElementById('lluviaTabla').innerHTML = lluvia + '<span class="tabla-unit">%</span>';
+            document.getElementById('vientoTabla').innerHTML = viento + '<span class="tabla-unit">km/h</span>';
+        }
+
+        // Función para actualizar todo
+        function actualizarTodo(humedadVal, temperaturaVal, lluviaVal, vientoVal) {
+            console.log("Actualizando interfaces:", {humedad: humedadVal, temperatura: temperaturaVal, lluvia: lluviaVal, viento: vientoVal});
+            humedad = humedadVal;
+            temperatura = temperaturaVal;
+            lluvia = lluviaVal;
+            viento = vientoVal;
+            actualizarSemaforo(humedad, temperatura, lluvia);
+            actualizarElementosVisuales(humedad, temperatura, lluvia);
+            actualizarTabla(humedad, temperatura, lluvia, viento);
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM cargado, inicializando tarjetas");
+            // Mostrar la primera carta por defecto
+            mostrarCarta("carta-semaforo");
+            actualizarTodo(humedad, temperatura, lluvia, viento);
+        });
+
+        // Efectos de clic para elementos interactivos
+        // Humedad
+        document.getElementById('luzVerdeHumedad').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(75, temperatura, lluvia, viento);
+            }
+        });
+        document.getElementById('luzAmarilloHumedad').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(45, temperatura, lluvia, viento);
+            }
+        });
+        document.getElementById('luzRojoHumedad').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(15, temperatura, lluvia, viento);
+            }
+        });
+
+        // Temperatura
+        document.getElementById('luzVerdeTemperatura').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, 25, lluvia, viento);
+            }
+        });
+        document.getElementById('luzAmarilloTemperatura').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, 18, lluvia, viento);
+            }
+        });
+        document.getElementById('luzRojoTemperatura').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, 10, lluvia, viento);
+            }
+        });
+
+        // Lluvia
+        document.getElementById('luzVerdeLluvia').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, temperatura, 20, viento);
+            }
+        });
+        document.getElementById('luzAmarilloLluvia').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, temperatura, 50, viento);
+            }
+        });
+        document.getElementById('luzRojoLluvia').addEventListener('click', function() {
+            if (bridge) {
+                bridge.setValues(humedad, temperatura, 80, viento);
+            }
+        });
+
+        // Efecto de clic en la gota
+        document.querySelector('.gota').addEventListener('click', function() {
+            const nuevoValor = Math.floor(Math.random() * 100);
+            if (bridge) {
+                bridge.setValues(nuevoValor, temperatura, lluvia, viento);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+2025-09-27 20:52:29,148 - INFO - Logging inicializado (nivel=INFO)
+2025-09-27 20:52:29,148 - INFO - Archivo de log: logs/debug_20250927_205229.log
+2025-09-27 20:52:29,148 - INFO -   ndo el programa...
+2025-09-27 20:52:29,148 - INFO - Fecha y hora de inicio: 2025-09-27 20:52:29
+2025-09-27 20:52:31,648 - INFO - Interfaz gráfica lanzada exitosamente
+2025-09-27 20:54:48,855 - INFO - Navegando a pantalla de Entrevista
+2025-09-27 20:55:04,447 - INFO - Usuario canceló la entrada del ID de entrevista
+2025-09-27 20:56:18,071 - INFO - Navegando a pantalla de Entrevista
+2025-09-27 20:56:27,150 - INFO - Usuario canceló la entrada del ID de entrevista
