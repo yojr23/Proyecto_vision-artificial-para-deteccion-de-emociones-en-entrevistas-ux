@@ -50,11 +50,13 @@ class CapturadorVideoMacOS(CapturadorVideo):
             '-f', 'avfoundation',
             '-framerate', '30',
             '-video_size', video_size,
-            '-i', '0:0',
+            '-i', '0:1',
             '-c:v', 'libx264',
             '-preset', 'ultrafast',
             '-c:a', 'aac',
             '-pix_fmt', 'yuv420p',
+            '-vsync', '2',
+            '-async', '1',
             '-y',  # overwrite
             ruta_archivo
         ]
@@ -84,6 +86,7 @@ class CapturadorVideoMacOS(CapturadorVideo):
         finally:
             self.ffmpeg_process = None
             self.output_file = None
+            
 
 class CapturadorVideoWindows(CapturadorVideo):
     def __init__(self):
