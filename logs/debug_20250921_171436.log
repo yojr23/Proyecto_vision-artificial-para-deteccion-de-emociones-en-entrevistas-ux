@@ -1,9 +1,0 @@
-2025-09-21 17:14:36,347 - INFO - Logging inicializado (nivel=INFO)
-2025-09-21 17:14:36,347 - INFO - Archivo de log: logs/debug_20250921_171436.log
-2025-09-21 17:14:36,348 - INFO -   ndo el programa...
-2025-09-21 17:14:36,348 - INFO - Fecha y hora de inicio: 2025-09-21 17:14:36
-2025-09-21 17:14:38,551 - INFO - Interfaz gráfica lanzada exitosamente
-2025-09-21 17:14:43,528 - INFO - Navegando a pantalla de Entrevista
-2025-09-21 17:14:44,477 - ERROR - Error al importar InterviewScreen: cannot import name 'Reporte' from 'classes.reporte' (/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/classes/reporte.py)
-2025-09-21 17:14:53,969 - INFO - Navegando a pantalla de Entrevista
-2025-09-21 17:14:53,975 - ERROR - Error al importar InterviewScreen: cannot import name 'Reporte' from 'classes.reporte' (/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/classes/reporte.py)

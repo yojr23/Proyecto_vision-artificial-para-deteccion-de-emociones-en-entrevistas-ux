@@ -1,7 +1,0 @@
-2025-09-21 23:58:38,924 - INFO - Logging inicializado (nivel=INFO)
-2025-09-21 23:58:38,924 - INFO - Archivo de log: logs/debug_20250921_235838.log
-2025-09-21 23:58:38,925 - INFO -   ndo el programa...
-2025-09-21 23:58:38,925 - INFO - Fecha y hora de inicio: 2025-09-21 23:58:38
-2025-09-21 23:58:39,782 - INFO - Interfaz gráfica lanzada exitosamente
-2025-09-21 23:58:41,814 - INFO - Navegando a pantalla de Entrevista
-2025-09-21 23:58:43,301 - ERROR - Error al abrir entrevista: 'Entrevista' object has no attribute 'id_entrevista'

@@ -1,9 +1,0 @@
-2025-09-21 17:19:36,532 - INFO - Logging inicializado (nivel=INFO)
-2025-09-21 17:19:36,532 - INFO - Archivo de log: logs/debug_20250921_171936.log
-2025-09-21 17:19:36,532 - INFO -   ndo el programa...
-2025-09-21 17:19:36,532 - INFO - Fecha y hora de inicio: 2025-09-21 17:19:36
-2025-09-21 17:19:37,250 - INFO - Interfaz gráfica lanzada exitosamente
-2025-09-21 17:19:39,015 - INFO - Navegando a pantalla de Entrevista
-2025-09-21 17:19:39,896 - ERROR - Error al importar InterviewScreen: No module named 'io.video'; 'io' is not a package
-2025-09-21 17:19:43,923 - INFO - Navegando a pantalla de Entrevista
-2025-09-21 17:19:43,926 - ERROR - Error al importar InterviewScreen: No module named 'io.video'; 'io' is not a package
