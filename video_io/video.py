@@ -5,7 +5,7 @@ import cv2
 import pyaudio
 import av
 from pathlib import Path
-
+import numpy as np
 
 class CapturadorVideo(ABC):
     @abstractmethod
@@ -26,62 +26,64 @@ class CapturadorVideo(ABC):
 
 class CapturadorVideoMacOS(CapturadorVideo):
     def __init__(self):
-        self.container = None
-        self.video_stream = None
-        self.audio_stream = None
-        self.device = None
+        self.ffmpeg_process = None
+        self.output_file = None
 
     def iniciar_grabacion(self, ruta_archivo: str, resolucion: str = '720p', codec: str = 'h264', audio: str = 'AAC'):
-        if self.container:
+        import subprocess
+        if self.ffmpeg_process is not None:
             raise RuntimeError("Grabación ya en curso")
 
         ruta_path = Path(ruta_archivo)
         if not ruta_path.parent.is_dir():
             raise ValueError(f"El directorio {ruta_path.parent} no existe")
 
-        resolucion_map = {'720p': (1280, 720)}
+        resolucion_map = {'720p': '1280x720'}
         if resolucion not in resolucion_map:
             raise ValueError(f"Resolución {resolucion} no soportada")
-        width, height = resolucion_map[resolucion]
+        video_size = resolucion_map[resolucion]
 
+        # avfoundation: video_index:audio_index, normalmente 0:0 para cámara/micrófono por defecto
+        # Puedes cambiar los índices si tienes más de un dispositivo
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-f', 'avfoundation',
+            '-framerate', '30',
+            '-video_size', video_size,
+            '-i', '0:0',
+            '-c:v', 'libx264',
+            '-preset', 'ultrafast',
+            '-c:a', 'aac',
+            '-pix_fmt', 'yuv420p',
+            '-y',  # overwrite
+            ruta_archivo
+        ]
         try:
-            self.container = av.open(ruta_archivo, mode='w')
-            self.video_stream = self.container.add_stream(codec, rate=30)
-            self.video_stream.width = width
-            self.video_stream.height = height
-            self.video_stream.pix_fmt = 'yuv420p'
-
-            if audio == 'AAC':
-                self.audio_stream = self.container.add_stream('aac')
-                self.audio_stream.bit_rate = 128000
-
-            print(f"Iniciando grabación en {ruta_archivo} con {resolucion}, {codec}, {audio} en macOS")
+            self.ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.output_file = ruta_archivo
+            print(f"Iniciando grabación con ffmpeg en {ruta_archivo} (cámara y micrófono por defecto)")
         except Exception as e:
-            self.detener_grabacion()
-            raise RuntimeError(f"Error al iniciar grabación en macOS: {str(e)}")
+            self.ffmpeg_process = None
+            raise RuntimeError(f"Error al iniciar ffmpeg: {str(e)}")
 
     def procesar_frame(self, frame):
-        if not self.container or not self.video_stream:
-            return
-        frame_av = av.VideoFrame.from_ndarray(frame, format='bgr24')
-        packet = self.video_stream.encode(frame_av)
-        if packet:
-            self.container.mux(packet)
+        # No es necesario con ffmpeg, pero se mantiene para compatibilidad con la UI
+        pass
 
     def detener_grabacion(self):
-        if not self.container:
+        import signal
+        if self.ffmpeg_process is None:
             raise RuntimeError("No hay grabación en curso")
         try:
-            if self.video_stream:
-                self.video_stream.encode(None)  # Flush encoder
-            self.container.close()
-            print("Deteniendo grabación en macOS")
+            self.ffmpeg_process.send_signal(signal.SIGINT)
+            self.ffmpeg_process.wait(timeout=5)
+            print(f"Grabación detenida y guardada en {self.output_file}")
+        except Exception as e:
+            self.ffmpeg_process.kill()
+            print(f"ffmpeg forzado a terminar: {e}")
         finally:
-            self.container = None
-            self.video_stream = None
-            self.audio_stream = None
-            self.device = None
-
+            self.ffmpeg_process = None
+            self.output_file = None
 
 class CapturadorVideoWindows(CapturadorVideo):
     def __init__(self):

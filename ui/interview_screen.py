@@ -208,7 +208,7 @@ class InterviewScreen(QWidget):
                 # Crear directorio de salida
                 self.output_file.parent.mkdir(parents=True, exist_ok=True)
                 # Iniciar grabación
-                self.capturador.iniciar_grabacion(str(self.output_file), resolucion="720p")
+                self.capturador.iniciar_grabacion(str(self.output_file), resolucion="720p", audio="AAC")
                 self.is_recording = True
                 self.start_time = time.time()
                 self.cronometro_timer.start(1000) # Actualizar cada segundo
