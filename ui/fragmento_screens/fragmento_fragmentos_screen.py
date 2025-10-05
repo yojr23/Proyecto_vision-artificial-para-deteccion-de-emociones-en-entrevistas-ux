@@ -1,60 +1,886 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QListWidget, QTextEdit
-from PySide6.QtCore import Qt
+import os
+import json
+import logging
 from pathlib import Path
+from datetime import datetime
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget,
+    QTableWidgetItem, QHeaderView, QPushButton, QFrame,
+    QTextEdit, QSplitter, QMessageBox, QProgressBar,
+    QComboBox, QListWidget, QListWidgetItem, QGroupBox,
+    QFileDialog, QDialog, QDialogButtonBox
+)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QPixmap, QPainter
+import cv2
+import subprocess
+
+
+class DeleteConfirmationDialog(QDialog):
+    """Diálogo de confirmación para eliminar fragmentos"""
+    def __init__(self, fragment_count, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Confirmar Eliminación")
+        self.setModal(True)
+        self.setup_ui(fragment_count)
+
+    def setup_ui(self, fragment_count):
+        layout = QVBoxLayout(self)
+        
+        message = QLabel(f"¿Está seguro de que desea eliminar {fragment_count} fragmento(s)?")
+        message.setStyleSheet("color: #1b5e20; font-size: 14px;")
+        message.setWordWrap(True)
+        layout.addWidget(message)
+
+        warning = QLabel("⚠️ Esta acción no se puede deshacer")
+        warning.setStyleSheet("color: #d32f2f; font-weight: bold;")
+        layout.addWidget(warning)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Yes | QDialogButtonBox.No,
+            Qt.Horizontal, self
+        )
+        buttons.button(QDialogButtonBox.Yes).setText("Sí, Eliminar")
+        buttons.button(QDialogButtonBox.No).setText("Cancelar")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        
+        layout.addWidget(buttons)
+
 
 class FragmentoFragmentosScreen(QWidget):
-    """Pantalla para explorar fragmentos generados"""
-    def __init__(self, parent=None):
+    """Pantalla para explorar y gestionar fragmentos generados"""
+    def __init__(self, logger=None, parent=None):
         super().__init__(parent)
+        self.logger = logger or logging.getLogger(__name__)
+        self.parent_window = parent
+        self.current_entrevista = None
+        self.fragmentos_data = []
         self.setup_ui()
-        self.cargar_fragmentos()
+        self.cargar_entrevistas()
 
     def setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+        """Configurar la interfaz de usuario"""
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(30, 20, 30, 20)
 
-        title = QLabel("Fragmentos Generados por Entrevista")
+        # 🔸 Header de la pantalla
+        header_frame = self.create_header_frame()
+        main_layout.addWidget(header_frame)
+
+        # 🔸 Panel de selección de entrevista
+        selection_frame = self.create_selection_frame()
+        main_layout.addWidget(selection_frame)
+
+        # 🔸 Contenido principal con splitter
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background: #4caf50;
+                width: 3px;
+                border-radius: 1px;
+            }
+            QSplitter::handle:hover {
+                background: #388e3c;
+            }
+        """)
+
+        # Panel izquierdo - Lista de fragmentos
+        left_panel = self.create_fragmentos_list_panel()
+        splitter.addWidget(left_panel)
+
+        # Panel derecho - Detalles y previsualización
+        right_panel = self.create_details_panel()
+        splitter.addWidget(right_panel)
+
+        # Configurar proporciones del splitter
+        splitter.setSizes([400, 500])
+        main_layout.addWidget(splitter, stretch=1)
+
+        # 🔸 Barra de estado
+        status_frame = self.create_status_frame()
+        main_layout.addWidget(status_frame)
+
+    def create_header_frame(self):
+        """Crear el header de la pantalla"""
+        header_frame = QFrame()
+        header_frame.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(76, 175, 80, 0.1),
+                    stop:1 rgba(76, 175, 80, 0.05));
+                border-radius: 20px;
+                border: 2px solid rgba(76, 175, 80, 0.3);
+                padding: 20px;
+            }
+        """)
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setSpacing(10)
+
+        # Título
+        title = QLabel("🎬 Explorador de Fragmentos Generados")
+        title.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        title.setStyleSheet("color: #000000;")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 22px; font-weight: bold; margin: 10px;")
-        layout.addWidget(title)
+        header_layout.addWidget(title)
 
-        self.fragment_list = QListWidget()
-        layout.addWidget(self.fragment_list)
+        # Descripción
+        desc = QLabel("Visualice, gestione y reproduzca los fragmentos creados por entrevista")
+        desc.setFont(QFont("Segoe UI", 12))
+        desc.setStyleSheet("color: #000000;")
+        desc.setAlignment(Qt.AlignCenter)
+        header_layout.addWidget(desc)
 
-        self.details = QTextEdit()
-        self.details.setReadOnly(True)
-        self.details.setPlaceholderText("Detalles del fragmento seleccionado...")
-        layout.addWidget(self.details)
+        return header_frame
 
-        self.btn_volver = QPushButton("Volver al Menú de Fragmentos")
-        self.btn_volver.clicked.connect(self.volver)
-        layout.addWidget(self.btn_volver)
+    def create_selection_frame(self):
+        """Crear panel de selección de entrevista"""
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame {
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 15px;
+                border: 2px solid #c8e6c9;
+                padding: 15px;
+            }
+        """)
+        layout = QHBoxLayout(frame)
 
-        self.fragment_list.itemClicked.connect(self.mostrar_detalle)
+        # Label
+        label = QLabel("📋 Seleccionar Entrevista:")
+        label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        label.setStyleSheet("color: #000000;")
+        layout.addWidget(label)
 
-    def cargar_fragmentos(self):
-        """Carga los fragmentos disponibles"""
-        folder = Path("data/fragmentos")
-        self.fragment_list.clear()
-        if not folder.exists():
-            self.fragment_list.addItem("⚠️ Carpeta no encontrada")
+        # ComboBox para entrevistas
+        self.entrevista_combo = QComboBox()
+        self.entrevista_combo.setFont(QFont("Segoe UI", 11))
+        self.entrevista_combo.setStyleSheet("""
+            QComboBox {
+                background: white;
+                border: 2px solid #4caf50;
+                border-radius: 8px;
+                padding: 8px 12px;
+                color: #1b5e20;
+                min-width: 200px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #4caf50;
+                margin-right: 10px;
+            }
+        """)
+        self.entrevista_combo.currentTextChanged.connect(self.on_entrevista_selected)
+        layout.addWidget(self.entrevista_combo)
+
+        # Botón actualizar
+        btn_refresh = QPushButton("🔄 Actualizar Lista")
+        btn_refresh.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4caf50, stop:1 #388e3c);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5cb860, stop:1 #4caf50);
+            }
+        """)
+        btn_refresh.clicked.connect(self.cargar_entrevistas)
+        layout.addWidget(btn_refresh)
+
+        layout.addStretch()
+
+        return frame
+
+    def create_fragmentos_list_panel(self):
+        """Crear panel de lista de fragmentos"""
+        panel = QFrame()
+        panel.setStyleSheet("""
+            QFrame {
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 15px;
+                border: 2px solid #c8e6c9;
+            }
+        """)
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Header del panel
+        panel_header = QLabel("📁 Fragmentos de la Entrevista")
+        panel_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        panel_header.setStyleSheet("color: #000000; margin-bottom: 10px;")
+        layout.addWidget(panel_header)
+
+        # Tabla de fragmentos
+        self.fragmentos_table = QTableWidget()
+        self.fragmentos_table.setColumnCount(4)
+        self.fragmentos_table.setHorizontalHeaderLabels([
+            "🎬 Fragmento", "⏱️ Duración", "📊 Tamaño", "📅 Creación"
+        ])
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        
+        self.fragmentos_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.fragmentos_table.setAlternatingRowColors(True)
+        self.fragmentos_table.clicked.connect(self.on_fragmento_selected)
+        
+        self.fragmentos_table.setStyleSheet("""
+            QTableWidget {
+                background: white;
+                border: 1px solid #c8e6c9;
+                border-radius: 10px;
+                gridline-color: #e8f5e9;
+                selection-background-color: #c8e6c9;
+                color: #1b5e20;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #e8f5e9;
+                color: #1b5e20;
+            }
+            QTableWidget::item:selected {
+                background: #a5d6a7;
+                color: #1b5e20;
+            }
+            QHeaderView::section {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #e8f5e9, stop:1 #c8e6c9);
+                color: #1b5e20;
+                font-weight: bold;
+                padding: 8px;
+                border: none;
+                border-right: 1px solid #a5d6a7;
+            }
+        """)
+        layout.addWidget(self.fragmentos_table)
+
+        # Botones de acción
+        action_layout = QHBoxLayout()
+        
+        self.btn_play = QPushButton("▶️ Reproducir Fragmento")
+        self.btn_play.setEnabled(False)
+        self.btn_play.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4caf50, stop:1 #388e3c);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:disabled {
+                background: #cccccc;
+                color: #666666;
+            }
+            QPushButton:hover:enabled {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5cb860, stop:1 #4caf50);
+            }
+        """)
+        self.btn_play.clicked.connect(self.reproducir_fragmento)
+        
+        self.btn_delete = QPushButton("🗑️ Eliminar Fragmento")
+        self.btn_delete.setEnabled(False)
+        self.btn_delete.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f44336, stop:1 #d32f2f);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:disabled {
+                background: #cccccc;
+                color: #666666;
+            }
+            QPushButton:hover:enabled {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ef5350, stop:1 #e53935);
+            }
+        """)
+        self.btn_delete.clicked.connect(self.eliminar_fragmento)
+        
+        self.btn_delete_all = QPushButton("🗑️ Eliminar Todos")
+        self.btn_delete_all.setEnabled(False)
+        self.btn_delete_all.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ff9800, stop:1 #f57c00);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:disabled {
+                background: #cccccc;
+                color: #666666;
+            }
+            QPushButton:hover:enabled {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ffa726, stop:1 #ff9800);
+            }
+        """)
+        self.btn_delete_all.clicked.connect(self.eliminar_todos_fragmentos)
+        
+        action_layout.addWidget(self.btn_play)
+        action_layout.addWidget(self.btn_delete)
+        action_layout.addWidget(self.btn_delete_all)
+        action_layout.addStretch()
+        
+        layout.addLayout(action_layout)
+
+        return panel
+
+    def create_details_panel(self):
+        """Crear panel de detalles y previsualización"""
+        panel = QFrame()
+        panel.setStyleSheet("""
+            QFrame {
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 15px;
+                border: 2px solid #c8e6c9;
+            }
+        """)
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Header del panel
+        panel_header = QLabel("🔍 Detalles del Fragmento")
+        panel_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        panel_header.setStyleSheet("color: #000000; margin-bottom: 10px;")
+        layout.addWidget(panel_header)
+
+        # Información del fragmento
+        info_frame = QFrame()
+        info_frame.setStyleSheet("""
+            QFrame {
+                background: #f1f8e9;
+                border-radius: 10px;
+                border: 1px solid #c8e6c9;
+                padding: 15px;
+            }
+        """)
+        info_layout = QVBoxLayout(info_frame)
+        
+        self.details_name = QLabel("Seleccione un fragmento")
+        self.details_name.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        self.details_name.setStyleSheet("color: #000000; margin-bottom: 10px;")
+        
+        self.details_info = QLabel("")
+        self.details_info.setFont(QFont("Segoe UI", 10))
+        self.details_info.setStyleSheet("color: #000000; line-height: 1.4;")
+        self.details_info.setWordWrap(True)
+        
+        info_layout.addWidget(self.details_name)
+        info_layout.addWidget(self.details_info)
+        layout.addWidget(info_frame)
+
+        # Información de la marca original
+        marca_frame = QFrame()
+        marca_frame.setStyleSheet("""
+            QFrame {
+                background: #e8f5e9;
+                border-radius: 10px;
+                border: 1px solid #a5d6a7;
+                padding: 15px;
+            }
+        """)
+        marca_layout = QVBoxLayout(marca_frame)
+        
+        marca_header = QLabel("📋 Información de la Marca Original")
+        marca_header.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        marca_header.setStyleSheet("color: #000000; margin-bottom: 10px;")
+        marca_layout.addWidget(marca_header)
+        
+        self.marca_info = QLabel("No hay información de marca disponible")
+        self.marca_info.setFont(QFont("Segoe UI", 10))
+        self.marca_info.setStyleSheet("color: #000000; line-height: 1.4;")
+        self.marca_info.setWordWrap(True)
+        marca_layout.addWidget(self.marca_info)
+        
+        layout.addWidget(marca_frame)
+
+        # Área de previsualización (mejorada con botón de reproducción)
+        preview_frame = QFrame()
+        preview_frame.setStyleSheet("""
+            QFrame {
+                background: #fafafa;
+                border-radius: 10px;
+                border: 2px dashed #bdbdbd;
+                padding: 20px;
+            }
+        """)
+        preview_layout = QVBoxLayout(preview_frame)
+        
+        preview_header = QLabel("🎥 Vista Previa del Video")
+        preview_header.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        preview_header.setStyleSheet("color: #000000; margin-bottom: 10px;")
+        preview_layout.addWidget(preview_header)
+        
+        self.preview_label = QLabel("La previsualización de video se mostrará aquí")
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setStyleSheet("""
+            color: #000000;
+            font-style: italic;
+            padding: 40px;
+            background: #eeeeee;
+            border-radius: 8px;
+        """)
+        self.preview_label.setMinimumHeight(150)
+        preview_layout.addWidget(self.preview_label)
+
+        # Botón para reproducir el fragmento (previsualización)
+        self.btn_preview_play = QPushButton("▶️ Reproducir Vista Previa")
+        self.btn_preview_play.setEnabled(False)
+        self.btn_preview_play.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4caf50, stop:1 #388e3c);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 20px;
+                font-weight: bold;
+            }
+            QPushButton:disabled {
+                background: #cccccc;
+                color: #666666;
+            }
+            QPushButton:hover:enabled {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5cb860, stop:1 #4caf50);
+            }
+        """)
+        self.btn_preview_play.clicked.connect(self.reproducir_fragmento_previsualizacion)
+        preview_layout.addWidget(self.btn_preview_play)
+
+        layout.addWidget(preview_frame)
+        layout.addStretch()
+        return panel
+
+    def create_status_frame(self):
+        """Crear la barra de estado"""
+        status_frame = QFrame()
+        status_frame.setStyleSheet("""
+            QFrame {
+                background: rgba(232, 245, 233, 0.8);
+                border-radius: 10px;
+                border: 1px solid #a5d6a7;
+                padding: 10px;
+            }
+        """)
+        layout = QHBoxLayout(status_frame)
+        
+        self.summary_label = QLabel("Seleccione una entrevista para ver los fragmentos")
+        self.summary_label.setStyleSheet("color: #000000; font-weight: bold;")
+        
+        layout.addWidget(self.summary_label)
+        layout.addStretch()
+        
+        return status_frame
+
+    def cargar_entrevistas(self):
+        """Cargar lista de entrevistas disponibles"""
+        try:
+            fragmentos_dir = Path("data/fragmentos")
+            if not fragmentos_dir.exists():
+                self.entrevista_combo.clear()
+                self.summary_label.setText("❌ No existe el directorio de fragmentos")
+                return
+
+            # Buscar carpetas de entrevistas
+            entrevistas = [d for d in fragmentos_dir.iterdir() if d.is_dir()]
+            
+            self.entrevista_combo.clear()
+            self.entrevista_combo.addItem("-- Seleccione una entrevista --")
+            
+            for entrevista in entrevistas:
+                fragmentos = list(entrevista.glob("*.mp4"))
+                if fragmentos:
+                    self.entrevista_combo.addItem(
+                        f"{entrevista.name} ({len(fragmentos)} fragmentos)"
+                    )
+
+            if len(entrevistas) == 0:
+                self.summary_label.setText("ℹ️ No hay entrevistas con fragmentos generados")
+            else:
+                self.summary_label.setText(f"✅ {len(entrevistas)} entrevistas con fragmentos encontradas")
+
+        except Exception as e:
+            self.mostrar_error(f"Error al cargar entrevistas: {str(e)}")
+
+    def on_entrevista_selected(self, texto):
+        """Manejar selección de entrevista"""
+        if texto == "-- Seleccione una entrevista --" or not texto:
+            self.current_entrevista = None
+            self.fragmentos_data = []
+            self.actualizar_tabla_fragmentos()
+            self.btn_delete_all.setEnabled(False)
             return
-        for frag in folder.glob("*.mp4"):
-            self.fragment_list.addItem(frag.name)
 
-    def mostrar_detalle(self, item):
-        """Muestra información del fragmento seleccionado"""
-        fragmento_path = Path("data/fragmentos") / item.text()
-        if fragmento_path.exists():
-            size = round(fragmento_path.stat().st_size / (1024 * 1024), 2)
-            self.details.setPlainText(
-                f"📄 Nombre: {fragmento_path.name}\n"
-                f"📏 Tamaño: {size} MB\n"
-                f"📂 Ruta: {fragmento_path}\n"
-                f"🕓 (Duración y comentario se integrarán luego con metadatos)"
+        # Extraer ID de entrevista del texto (formato: "id_entrevista (X fragmentos)")
+        entrevista_id = texto.split(' ')[0]
+        self.current_entrevista = entrevista_id
+        self.cargar_fragmentos_entrevista(entrevista_id)
+
+    def cargar_fragmentos_entrevista(self, entrevista_id):
+        """Cargar fragmentos de una entrevista específica"""
+        try:
+            entrevista_dir = Path("data/fragmentos") / entrevista_id
+            if not entrevista_dir.exists():
+                self.mostrar_error(f"No se encuentra la carpeta de la entrevista {entrevista_id}")
+                return
+
+            fragmentos_files = list(entrevista_dir.glob("*.mp4"))
+            self.fragmentos_data = []
+
+            for frag_path in fragmentos_files:
+                try:
+                    stat = frag_path.stat()
+                    duration = self.obtener_duracion_video(frag_path)
+                    
+                    fragmento_info = {
+                        'path': frag_path,
+                        'name': frag_path.name,
+                        'duration': duration,
+                        'size': stat.st_size,
+                        'creation_time': datetime.fromtimestamp(stat.st_ctime),
+                        'modification_time': datetime.fromtimestamp(stat.st_mtime)
+                    }
+                    
+                    # Extraer información de la marca del nombre del archivo
+                    self.extraer_info_marca(fragmento_info, frag_path.name)
+                    
+                    self.fragmentos_data.append(fragmento_info)
+                    
+                except Exception as e:
+                    print(f"Error procesando {frag_path}: {str(e)}")
+                    continue
+
+            self.actualizar_tabla_fragmentos()
+            self.btn_delete_all.setEnabled(len(self.fragmentos_data) > 0)
+
+        except Exception as e:
+            self.mostrar_error(f"Error al cargar fragmentos: {str(e)}")
+
+    def extraer_info_marca(self, fragmento_info, filename):
+        """Extraer información de la marca original desde el nombre del archivo y JSON."""
+        try:
+            name = filename.replace(".mp4", "")
+            parts = name.split("_")
+
+            # Buscar el último elemento (pregunta_id)
+            pregunta_id = parts[-1]
+            entrevista_id = "_".join(parts[1:-1])  # todo lo que esté entre "fragmento" y el último valor
+
+            fragmento_info["entrevista_id"] = entrevista_id
+            fragmento_info["pregunta_id"] = pregunta_id
+
+            # Buscar archivo de marcas
+            marcas_path = Path(f"data/marcas/marcas_{entrevista_id}.json")
+            if not marcas_path.exists():
+                self.logger.warning(f"No se encontró archivo de marcas para {entrevista_id}")
+                return
+
+            with open(marcas_path, "r", encoding="utf-8") as f:
+                marcas_data = json.load(f)
+
+            # Buscar la marca con el mismo pregunta_id
+            for marca in marcas_data.get("marcas", []):
+                if str(marca.get("pregunta_id")) == str(pregunta_id):
+                    fragmento_info["marca_inicio"] = marca.get("inicio", "N/A")
+                    fragmento_info["marca_fin"] = marca.get("fin", "N/A")
+                    fragmento_info["marca_nota"] = marca.get("nota", "")
+                    break
+            else:
+                # Si no se encontró la marca
+                self.logger.warning(f"No se encontró marca para pregunta_id {pregunta_id} en {entrevista_id}")
+
+        except Exception as e:
+            self.logger.error(f"Error al extraer información de marca para {filename}: {e}")
+
+    def obtener_duracion_video(self, video_path):
+        """Obtener duración del video usando OpenCV"""
+        try:
+            cap = cv2.VideoCapture(str(video_path))
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                cap.release()
+                
+                if fps > 0 and frame_count > 0:
+                    duration_seconds = frame_count / fps
+                    return self.formatear_duracion(duration_seconds)
+            return "N/A"
+        except:
+            return "N/A"
+
+    def actualizar_tabla_fragmentos(self):
+        """Actualizar la tabla con los fragmentos cargados"""
+        self.fragmentos_table.setRowCount(len(self.fragmentos_data))
+        
+        for row, frag in enumerate(self.fragmentos_data):
+            # Nombre del fragmento
+            name_item = QTableWidgetItem(frag['name'])
+            name_item.setData(Qt.UserRole, row)
+            
+            # Duración
+            duration_item = QTableWidgetItem(frag['duration'])
+            
+            # Tamaño
+            size_item = QTableWidgetItem(self.formatear_tamaño_archivo(frag['size']))
+            
+            # Fecha de creación
+            date_item = QTableWidgetItem(frag['creation_time'].strftime("%Y-%m-%d %H:%M"))
+            
+            self.fragmentos_table.setItem(row, 0, name_item)
+            self.fragmentos_table.setItem(row, 1, duration_item)
+            self.fragmentos_table.setItem(row, 2, size_item)
+            self.fragmentos_table.setItem(row, 3, date_item)
+        
+        # Actualizar resumen
+        if self.current_entrevista:
+            total_size = sum(frag['size'] for frag in self.fragmentos_data)
+            self.summary_label.setText(
+                f"📊 Entrevista {self.current_entrevista}: "
+                f"{len(self.fragmentos_data)} fragmentos | "
+                f"Tamaño total: {self.formatear_tamaño_archivo(total_size)}"
             )
 
-    def volver(self):
-        """Regresar al menú principal del módulo"""
-        if self.parent():
-            self.parent().setCurrentIndex(0)
+    def on_fragmento_selected(self, index):
+        """Manejar selección de fragmento en la tabla"""
+        row = index.row()
+        if 0 <= row < len(self.fragmentos_data):
+            fragmento = self.fragmentos_data[row]
+            self.mostrar_detalles_fragmento(fragmento)
+            self.btn_play.setEnabled(True)
+            self.btn_delete.setEnabled(True)
+            self.btn_preview_play.setEnabled(True)
+            self.preview_label.setText(f"Fragmento seleccionado: {fragmento['name']}")
+            self.logger.info(f"Fragmento seleccionado: {fragmento['name']}")
+        else:
+            self.btn_preview_play.setEnabled(False)
+            self.preview_label.setText("La previsualización de video se mostrará aquí")
+
+    def mostrar_detalles_fragmento(self, fragmento):
+        """Mostrar detalles del fragmento seleccionado"""
+        # Información básica
+        self.details_name.setText(f"🎬 {fragmento['name']}")
+        
+        basic_info = f"""
+        📅 <b>Fecha de creación:</b> {fragmento['creation_time'].strftime("%Y-%m-%d %H:%M:%S")}<br>
+        ⏱️ <b>Duración:</b> {fragmento['duration']}<br>
+        📊 <b>Tamaño:</b> {self.formatear_tamaño_archivo(fragmento['size'])}<br>
+        📍 <b>Ruta:</b> {fragmento['path']}<br>
+        🆔 <b>Entrevista:</b> {fragmento.get('entrevista_id', 'N/A')}<br>
+        ❓ <b>Pregunta ID:</b> {fragmento.get('pregunta_id', 'N/A')}
+        """
+        self.details_info.setText(basic_info)
+        
+        # Información de la marca
+        marca_inicio, marca_fin, marca_nota = "N/A", "N/A", "No disponible"
+        try:
+            entrevista_id = fragmento.get("entrevista_id")
+            pregunta_id = fragmento.get("pregunta_id")
+            marcas_path = Path(f"data/marcas/marcas_{entrevista_id}.json")
+
+            if marcas_path.exists():
+                with open(marcas_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    for m in data.get("marcas", []):
+                        try:
+                            if int(m.get("pregunta_id")) == int(pregunta_id):
+                                marca_inicio = m.get("inicio", "N/A")
+                                marca_fin = m.get("fin", "N/A")
+                                marca_nota = m.get("nota", "No disponible")
+                                break
+                        except ValueError:
+                            continue
+
+            else:
+                self.logger.warning(f"No se encontró archivo de marcas para {entrevista_id}")
+        except Exception as e:
+            self.logger.error(f"Error cargando marca para {fragmento['name']}: {e}")
+
+        marca_info = f"""
+        ⏰ <b>Inicio original:</b> {marca_inicio}s<br>
+        ⏹️ <b>Fin original:</b> {marca_fin}s<br>
+        📝 <b>Nota:</b> {marca_nota}
+        """
+        self.marca_info.setText(marca_info)
+
+    def reproducir_fragmento(self):
+        """Reproducir el fragmento seleccionado"""
+        current_row = self.fragmentos_table.currentRow()
+        if 0 <= current_row < len(self.fragmentos_data):
+            fragmento = self.fragmentos_data[current_row]
+            try:
+                self._abrir_video(fragmento['path'])
+                self.logger.info(f"Reproduciendo fragmento: {fragmento['path']}")
+            except Exception as e:
+                self.logger.error(f"No se pudo abrir el video: {str(e)}")
+                self.mostrar_error(f"No se pudo abrir el video: {str(e)}")
+
+    def reproducir_fragmento_previsualizacion(self):
+        """Reproducir el fragmento desde el panel de previsualización"""
+        current_row = self.fragmentos_table.currentRow()
+        if 0 <= current_row < len(self.fragmentos_data):
+            fragmento = self.fragmentos_data[current_row]
+            try:
+                self._abrir_video(fragmento['path'])
+                self.logger.info(f"Reproduciendo fragmento (previsualización): {fragmento['path']}")
+            except Exception as e:
+                self.logger.error(f"No se pudo abrir el video: {str(e)}")
+                self.mostrar_error(f"No se pudo abrir el video: {str(e)}")
+
+    def _abrir_video(self, path):
+        """Abrir video usando el reproductor del sistema"""
+        if os.name == 'nt':
+            os.startfile(str(path))
+        elif os.name == 'posix':
+            # macOS o Linux
+            if hasattr(os, "uname") and os.uname().sysname == "Darwin":
+                subprocess.run(['open', str(path)])
+            else:
+                subprocess.run(['xdg-open', str(path)])
+        else:
+            raise RuntimeError("Sistema operativo no soportado para abrir videos")
+
+    def eliminar_fragmento(self):
+        """Eliminar el fragmento seleccionado"""
+        current_row = self.fragmentos_table.currentRow()
+        if 0 <= current_row < len(self.fragmentos_data):
+            fragmento = self.fragmentos_data[current_row]
+            
+            reply = QMessageBox.question(
+                self,
+                "Confirmar Eliminación",
+                f"¿Está seguro de que desea eliminar el fragmento?\n{fragmento['name']}",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                try:
+                    fragmento['path'].unlink()  # Eliminar archivo
+                    self.cargar_fragmentos_entrevista(self.current_entrevista)  # Recargar
+                    QMessageBox.information(self, "Éxito", "Fragmento eliminado correctamente")
+                except Exception as e:
+                    self.mostrar_error(f"Error al eliminar fragmento: {str(e)}")
+
+    def eliminar_todos_fragmentos(self):
+        """Eliminar todos los fragmentos de la entrevista actual"""
+        if not self.current_entrevista or not self.fragmentos_data:
+            return
+
+        dialog = DeleteConfirmationDialog(len(self.fragmentos_data), self)
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                entrevista_dir = Path("data/fragmentos") / self.current_entrevista
+                deleted_count = 0
+                
+                for fragmento in self.fragmentos_data:
+                    try:
+                        fragmento['path'].unlink()
+                        deleted_count += 1
+                    except:
+                        continue
+                
+                # Intentar eliminar la carpeta si está vacía
+                try:
+                    if not any(entrevista_dir.iterdir()):
+                        entrevista_dir.rmdir()
+                except:
+                    pass
+                
+                QMessageBox.information(
+                    self,
+                    "Eliminación Completada",
+                    f"Se eliminaron {deleted_count} fragmentos"
+                )
+                
+                # Recargar interfaz
+                self.cargar_entrevistas()
+                self.current_entrevista = None
+                self.fragmentos_data = []
+                self.actualizar_tabla_fragmentos()
+                
+            except Exception as e:
+                self.mostrar_error(f"Error al eliminar fragmentos: {str(e)}")
+
+    def formatear_duracion(self, seconds):
+        """Formatear duración en segundos a formato legible"""
+        if seconds == "N/A":
+            return "N/A"
+        
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        else:
+            return f"{minutes:02d}:{secs:02d}"
+
+    def formatear_tamaño_archivo(self, size_bytes):
+        """Formatear tamaño de archivo a formato legible"""
+        if size_bytes == 0:
+            return "0 B"
+        
+        size_names = ["B", "KB", "MB", "GB"]
+        i = 0
+        while size_bytes >= 1024 and i < len(size_names) - 1:
+            size_bytes /= 1024.0
+            i += 1
+        
+        return f"{size_bytes:.1f} {size_names[i]}"
+
+    # ------------------------------------------------------------------
+    # Utilidades
+    # ------------------------------------------------------------------
+    def show_error(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Error")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.error(msg)
+
+    def show_warning(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Advertencia")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Warning)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.warning(msg)

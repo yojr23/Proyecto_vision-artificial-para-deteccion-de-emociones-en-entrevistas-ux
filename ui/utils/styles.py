@@ -23,7 +23,7 @@ class ColorPalette:
     SPRING_GREEN = "#2E8B57"       # Sea Green
     OLIVE_GREEN = "#6B8E23"        # Olive Drab
     DARK_OLIVE = "#2F4F2F"         # Dark Slate Gray
-    
+    SOFT_GREEN = "#66bb6a"
     # Colores de apoyo
     WHITE = "#FFFFFF"
     OFF_WHITE = "#FAFFFE"

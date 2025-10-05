@@ -493,3 +493,34 @@ class App(QMainWindow):
         msg.setText(message)
         msg.setStyleSheet(MessageBoxStyles.get_modern_messagebox_style())
         msg.exec()
+    
+    # ------------------------------------------------------------------
+    # Utilidades
+    # ------------------------------------------------------------------
+    def show_error(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Error")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.error(msg)
+
+    def show_warning(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Advertencia")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Warning)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.warning(msg)

@@ -298,23 +298,27 @@ class InterviewScreen(QWidget):
             return
         try:
             timestamp = time.time() - self.start_time
-            nota = self.txt_comentarios.toPlainText()
+            nota = self.txt_comentarios.toPlainText().strip()
+
             marca = Marca(
                 entrevista_id=self.entrevista.id,
                 pregunta_id=self.current_pregunta_id,
                 inicio=timestamp,
+                fin=None,
                 nota=nota
             )
-            self.marcas.agregar_marca(marca)
+
+            # Agregar la marca sin guardar aún en archivo
+            self.marcas.marcas.append(marca)
             print(f"Marca de inicio creada para pregunta {self.current_pregunta_id} en {timestamp:.2f}s")
-            # Cambiar color del botón a verde y deshabilitarlo
+
             self.btn_inicio.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
             self.btn_inicio.setEnabled(False)
-            # Actualizar estados
             self.pregunta_iniciada = True
-            # Habilitar y preparar btn_fin
+
             self.btn_fin.setEnabled(True)
             self.btn_fin.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo crear la marca: {str(e)}")
 
@@ -326,23 +330,26 @@ class InterviewScreen(QWidget):
         if not self.pregunta_iniciada:
             QMessageBox.warning(self, "Advertencia", "Debe marcar el inicio de la pregunta primero")
             return
+
         try:
             timestamp = time.time() - self.start_time
             marca = self.marcas.buscar_marcas_por_pregunta_id(self.current_pregunta_id)
-            if marca and marca.fin is None:
+            if marca:
                 marca.fin = timestamp
-                self.marcas._guardar_marcas_json()
+                marca.nota = self.txt_comentarios.toPlainText().strip()
                 print(f"Marca de fin actualizada para pregunta {self.current_pregunta_id} en {timestamp:.2f}s")
-                # Actualizar estados
+
+                # Ahora sí guardar todo el conjunto de marcas actualizado
+                self.marcas._guardar_marcas_json()
+
                 self.pregunta_finalizada = True
-                # Cambiar btn_fin a verde
                 self.btn_fin.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
                 self.btn_fin.setEnabled(False)
-                # Cambiar btn_siguiente a naranja (listo para click)
                 self.btn_siguiente.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
                 self.btn_siguiente.setEnabled(True)
             else:
                 QMessageBox.warning(self, "Advertencia", "No se encontró una marca de inicio para esta pregunta")
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo actualizar la marca: {str(e)}")
 
@@ -388,6 +395,50 @@ class InterviewScreen(QWidget):
             self.cap.release()
         event.accept()
 
+    # ------------------------------------------------------------------
+    # Utilidades
+    # ------------------------------------------------------------------
+    def show_error(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Error")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.error(msg)
+
+    def show_warning(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Advertencia")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Warning)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.warning(msg)
+        
+    def show_critical(self, msg):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Crítico")
+        msgbox.setText(msg)
+        msgbox.setIcon(QMessageBox.Warning)
+        msgbox.setStyleSheet("""
+            QLabel { 
+                color: black; 
+                background-color: white; 
+            }
+        """)
+        msgbox.exec()
+        self.logger.warning(msg)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
