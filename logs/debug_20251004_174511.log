@@ -1,7 +1,0 @@
-2025-10-04 17:45:11,426 - INFO - Logging inicializado (nivel=INFO)
-2025-10-04 17:45:11,427 - INFO - Archivo de log: logs/debug_20251004_174511.log
-2025-10-04 17:45:11,427 - INFO -   ndo el programa...
-2025-10-04 17:45:11,427 - INFO - Fecha y hora de inicio: 2025-10-04 17:45:11
-2025-10-04 17:45:12,218 - INFO - Interfaz gráfica lanzada exitosamente
-2025-10-04 17:45:14,140 - INFO - Navegando a pantalla de Entrevista
-2025-10-04 17:45:14,141 - ERROR - Error al abrir entrevista: name 'entrevista_id' is not defined

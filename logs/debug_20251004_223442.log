@@ -1,7 +1,0 @@
-2025-10-04 22:34:42,557 - INFO - Logging inicializado (nivel=INFO)
-2025-10-04 22:34:42,557 - INFO - Archivo de log: logs/debug_20251004_223442.log
-2025-10-04 22:34:42,557 - INFO -   ndo el programa...
-2025-10-04 22:34:42,557 - INFO - Fecha y hora de inicio: 2025-10-04 22:34:42
-2025-10-04 22:34:43,331 - INFO - Interfaz gráfica lanzada exitosamente
-2025-10-04 22:34:45,200 - INFO - Navegando a Previsualización de Fragmentos
-2025-10-04 22:34:45,200 - ERROR - Error al abrir : 'PrevisualizacionScreen' object has no attribute 'setup_ui'
