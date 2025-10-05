@@ -1,0 +1,9 @@
+2025-10-04 17:49:39,542 - INFO - Logging inicializado (nivel=INFO)
+2025-10-04 17:49:39,542 - INFO - Archivo de log: logs/debug_20251004_174939.log
+2025-10-04 17:49:39,542 - INFO -   ndo el programa...
+2025-10-04 17:49:39,542 - INFO - Fecha y hora de inicio: 2025-10-04 17:49:39
+2025-10-04 17:49:40,217 - INFO - Interfaz gráfica lanzada exitosamente
+2025-10-04 17:49:42,413 - INFO - Navegando a pantalla de Entrevista
+2025-10-04 17:49:42,745 - ERROR - Error al abrir entrevista: 'InterviewScreen' object has no attribute 'marcar_inicio'
+2025-10-04 17:50:00,493 - INFO - Navegando a pantalla de Entrevista
+2025-10-04 17:50:00,532 - ERROR - Error al abrir entrevista: 'InterviewScreen' object has no attribute 'marcar_inicio'

@@ -1,0 +1,20 @@
+2025-10-04 22:32:43,985 - INFO - Logging inicializado (nivel=INFO)
+2025-10-04 22:32:43,985 - INFO - Archivo de log: logs/debug_20251004_223243.log
+2025-10-04 22:32:43,985 - INFO -   ndo el programa...
+2025-10-04 22:32:43,985 - INFO - Fecha y hora de inicio: 2025-10-04 22:32:43
+2025-10-04 22:32:44,700 - ERROR - Error fatal en la aplicación: 'ModernButton' object has no attribute 'setWordWrap'
+Traceback (most recent call last):
+  File "/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/main.py", line 53, in main
+    window = App(logger=logging.getLogger(__name__))  # Pasar el logger
+  File "/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/ui/app.py", line 31, in __init__
+    self.setupMainWidget()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/ui/app.py", line 69, in setupMainWidget
+    self.buildActionButtonsSection(main_layout)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/ui/app.py", line 334, in buildActionButtonsSection
+    buttons_grid = self.createButtonsGrid()
+  File "/Users/j.rinconc/Desktop/ing sistemas/Sistemas Unab /proyecto de grado/proyecto_ux/ui/app.py", line 384, in createButtonsGrid
+    btn_entrevista.setWordWrap(True)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ModernButton' object has no attribute 'setWordWrap'

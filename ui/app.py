@@ -19,6 +19,7 @@ from .utils.styles import (
     MessageBoxStyles, LayoutSettings, FontSettings
 )
 from ui.interview_screen import InterviewScreen
+from ui.fragmento_screen import FragmentoMainWindow
 
 class App(QMainWindow):
     """Aplicación principal AGRIOT con arquitectura modular"""
@@ -126,41 +127,102 @@ class App(QMainWindow):
         return subtitle
         
     def buildFeatureSection(self, parent_layout):
-        """Construir sección de características con cards flotantes"""
+        """Construir sección de características con cards estáticas y animación de icono"""
+        from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QPoint
         features_frame = QWidget()
         features_layout = QHBoxLayout(features_frame)
         features_layout.setSpacing(30)
         features_layout.setContentsMargins(0, 0, 0, 0)
         features_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
 
-        # Crear cards de características
-        cards_data = self.getFeatureCardsData()
-        for card_data in cards_data:
-            card = FloatingCard(**card_data)
-            card.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            features_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignTop)
+        # Datos estáticos de las cartas
+        static_cards = [
+            {"icon": "🤖", "title": "Detección Emocional IA", "desc": "Análisis avanzado de expresiones faciales para evaluar la experiencia del usuario en tiempo real"},
+            {"icon": "📊", "title": "UX Agrícola Inclusiva", "desc": "Herramientas especializadas para medir usabilidad en entornos rurales y campesinos"},
+            {"icon": "🚀", "title": "Transformación Digital", "desc": "Empoderando a mujeres campesinas mediante tecnología accesible e intuitiva"},
+        ]
+
+        for card in static_cards:
+            card_widget = QWidget()
+            card_widget.setFixedSize(320, 220)
+            card_layout = QVBoxLayout(card_widget)
+            card_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+            card_layout.setSpacing(12)
+            card_layout.setContentsMargins(24, 18, 24, 18)
+
+            # Icono animado
+            icon_label = QLabel(card["icon"])
+            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_label.setStyleSheet(f"""
+                font-size: 54px;
+                color: {ColorPalette.DEEP_GREEN if hasattr(ColorPalette, 'DEEP_GREEN') else '#1a3d1a'};
+                background: transparent;
+                border-radius: 18px;
+                transition: all 0.2s;
+                padding: 0px;
+            """)
+            icon_label.setFixedHeight(64)
+
+            # Animación de rebote hacia arriba (como la mascota)
+            def make_animated_icon(label):
+                anim = QPropertyAnimation(label, b"pos", label)
+                anim.setDuration(420)
+                anim.setEasingCurve(QEasingCurve.OutBounce)
+                def enterEvent(event):
+                    anim.stop()
+                    anim.setStartValue(label.pos())
+                    anim.setEndValue(label.pos() + QPoint(0, -22))
+                    anim.start()
+                def leaveEvent(event):
+                    anim.stop()
+                    anim.setStartValue(label.pos())
+                    anim.setEndValue(label.pos() + QPoint(0, 22))
+                    anim.start()
+                label.enterEvent = enterEvent
+                label.leaveEvent = leaveEvent
+            make_animated_icon(icon_label)
+
+            card_layout.addWidget(icon_label)
+
+            # Título limpio
+            title_label = QLabel(card["title"])
+            title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            title_label.setStyleSheet(f"""
+                font-size: 22px;
+                font-weight: bold;
+                color: {ColorPalette.DEEP_GREEN if hasattr(ColorPalette, 'DEEP_GREEN') else '#1a3d1a'};
+                letter-spacing: 1px;
+                background: transparent;
+                text-shadow: 1px 1px 6px rgba(0,0,0,0.08);
+                border: none;
+            """)
+            card_layout.addWidget(title_label)
+
+            # Descripción limpia
+            desc_label = QLabel(card["desc"])
+            desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet(f"""
+                font-size: 15px;
+                color: {ColorPalette.DARK_OLIVE if hasattr(ColorPalette, 'DARK_OLIVE') else '#333'};
+                background: transparent;
+                border: none;
+                padding: 0 2px;
+            """)
+            card_layout.addWidget(desc_label)
+
+            # Estilo de la card (usando gradiente y bordes del proyecto)
+            card_widget.setStyleSheet(f"""
+                background: {GradientStyles.background_gradient() if hasattr(GradientStyles, 'background_gradient') else 'qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #e8f5e9, stop:1 #f1f8e9)'};
+                border-radius: 22px;
+                border: 2px solid {ColorPalette.LIGHT_GREEN if hasattr(ColorPalette, 'LIGHT_GREEN') else '#b2dfdb'};
+                box-shadow: 0 4px 18px rgba(60,120,60,0.08);
+            """)
+            features_layout.addWidget(card_widget, alignment=Qt.AlignmentFlag.AlignTop)
 
         parent_layout.addWidget(features_frame)
         
-    def getFeatureCardsData(self):
-        """Obtener datos para las cards de características"""
-        return [
-            {
-                "title": "Detección Emocional IA",
-                "description": "Análisis avanzado de expresiones faciales para evaluar la experiencia del usuario en tiempo real",
-                "icon": "🤖"
-            },
-            {
-                "title": "UX Agrícola Inclusiva", 
-                "description": "Herramientas especializadas para medir usabilidad en entornos rurales y campesinos",
-                "icon": "📊"
-            },
-            {
-                "title": "Transformación Digital",
-                "description": "Empoderando a mujeres campesinas mediante tecnología accesible e intuitiva", 
-                "icon": "🚀"
-            }
-        ]
+    # getFeatureCardsData eliminado: ahora las cartas son estáticas y animadas
         
     def buildMainContentSection(self, parent_layout):
         """Construir sección principal con información y mascota"""
@@ -309,6 +371,28 @@ class App(QMainWindow):
         btn_entrevista.clicked.connect(self.open_entrevista)
         buttons_grid.addWidget(btn_entrevista, alignment=Qt.AlignmentFlag.AlignTop)
 
+
+        # Botón: Iniciar Entrevista
+        btn_previsualizacion = ModernButton(
+            text="Previsualización\nde Fragmentos",
+            button_type="primary",
+            icon_text="🎥"
+        )
+        btn_previsualizacion.setFixedHeight(60)
+        btn_previsualizacion.setMinimumWidth(220)
+        btn_previsualizacion.setMaximumWidth(340)
+        btn_previsualizacion.clicked.connect(self.open_previsualizacion)
+        # Ajustar el texto para que se muestre centrado en dos líneas
+        btn_previsualizacion.setStyleSheet(btn_previsualizacion.styleSheet() + """
+            QPushButton {
+            text-align: center;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            line-height: 1.2;
+            }
+        """)
+        buttons_grid.addWidget(btn_previsualizacion, alignment=Qt.AlignmentFlag.AlignTop)
+
         # Botón: Generar Análisis
         btn_analisis = ModernButton(
             text="Generar Análisis",
@@ -337,79 +421,9 @@ class App(QMainWindow):
         self.logger.info("Navegando a pantalla de Entrevista")
         
         try:
-            # Determinar el ID más grande en la carpeta data/videos_originales
-            videos_path = Path("data/videos_originales")
-            max_num = 0
-            today = datetime.now().strftime('%Y-%m-%d')
-            
-            if videos_path.exists():
-                for video in videos_path.glob("entrevista_*.mp4"):
-                    video_id = video.stem.split("entrevista_")[1]
-                    date_part, num_part = video_id.split("_")
-                    if date_part == today:
-                        num = int(num_part)
-                        max_num = max(max_num, num)
-            
-            # Calcular el próximo número de entrevista
-            next_num = max_num + 1
-            default_id = f"{today}_{next_num:03d}"
-            
-            # Crear y configurar el QInputDialog con estilos
-            input_dialog = QInputDialog(self)
-            input_dialog.setWindowTitle("ID de Entrevista")
-            input_dialog.setLabelText("Ingrese el ID de la entrevista:")
-            input_dialog.setTextValue(default_id)
-            
-            # Aplicar estilos para que el texto sea negro
-            input_dialog.setStyleSheet("""
-                QInputDialog {
-                    color: black;
-                    background-color: white;
-                }
-                QLabel {
-                    color: black;
-                    background-color: white;
-                }
-                QLineEdit {
-                    color: black;
-                    background-color: white;
-                    border: 1px solid gray;
-                }
-                QPushButton {
-                    color: black;
-                    background-color: lightgray;
-                    border: 1px solid gray;
-                    padding: 5px 10px;
-                }
-                QPushButton:hover {
-                    background-color: gray;
-                    color: white;
-                }
-            """)
-            
-            # Ejecutar el diálogo
-            ok = input_dialog.exec_()
-            entrevista_id = input_dialog.textValue()
-            
-            if not ok:
-                self.logger.info("Usuario canceló la entrada del ID de entrevista")
-                return
-            
-            # Validar el ID ingresado
-            try:
-                date_part, num_part = entrevista_id.split("_")
-                if date_part != today or not num_part.isdigit():
-                    raise ValueError("Formato de ID inválido")
-            except ValueError:
-                self.logger.error(f"ID de entrevista inválido: {entrevista_id}")
-                QMessageBox.critical(self, "Error", "El ID de entrevista debe tener el formato AAAA-MM-DD_NNN")
-                return
-            
-            self.id = entrevista_id
-            self.video_original = videos_path / f"entrevista_{self.id}.mp4"
             
             # Importar y crear la pantalla de entrevista
-            self.entrevista_window = InterviewScreen(entrevista_id=entrevista_id)
+            self.entrevista_window = InterviewScreen()
             self.entrevista_window.show()
             
         except ImportError as e:
@@ -419,7 +433,23 @@ class App(QMainWindow):
             self.logger.error(f"Error al abrir entrevista: {e}")
             QMessageBox.critical(self, "Error", f"Error al abrir la pantalla: {str(e)}")
                 
-                
+    def open_previsualizacion(self):
+        """Abrir módulo de fragmentos como ventana separada"""
+        self.logger.info("Abriendo ventana del módulo de fragmentos...")
+        try:
+            from ui.fragmento_screen import FragmentoMainWindow
+            
+            # Ocultar la ventana principal
+            self.hide()
+            
+            # Crear y mostrar la ventana del módulo de fragmentos
+            self.fragmento_window = FragmentoMainWindow(parent=self)
+            self.fragmento_window.show()
+        except Exception as e:
+            self.logger.error(f"Error al abrir módulo de fragmentos: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de fragmentos: {e}")
+
+                   
     def buildFooter(self, parent_layout):
         """Construir footer con espaciador"""
         # Espaciador antes del footer

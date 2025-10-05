@@ -1,7 +1,7 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QTextEdit, QTabWidget, QMessageBox
+    QPushButton, QTextEdit, QTabWidget, QMessageBox, QInputDialog
 )
 from PySide6.QtCore import QTimer, QObject, Signal, Slot, QUrl
 from PySide6.QtGui import QPixmap, QImage
@@ -42,29 +42,30 @@ class InterviewScreen(QWidget):
         self.resize(1400, 800)
 
         # Core logic
-        self.entrevista = Entrevista(entrevista_id=entrevista_id)
+        self.entrevista = None
         self.preguntas = EntrevistaPreguntas()
         self.categorias = list(self.preguntas.preguntas.keys())
         self.categoria_idx = 0
         self.pregunta_idx = 0
         self.current_pregunta_id = 1  # ID incremental para preguntas
 
-        # Video capturador
-        self.capturador = obtener_capturador()
+        # Video capturador y marcas (se inicializan por grabación)
+        self.capturador = None
         self.is_recording = False
-        self.output_file = Path(f"data/videos_originales/interview_{self.entrevista.id}.mp4")
-        self.marcas = Marcas(self.entrevista.id, self.output_file)
+        self.output_file = None
+        self.marcas = None
         self.start_time = None  # Para calcular timestamps relativos
+
+        # Estados de la pregunta actual
+        self.pregunta_iniciada = False
+        self.pregunta_finalizada = False
 
         layout = QHBoxLayout(self)
 
-
-        #cronometro 
-        
+        # Cronómetro
         self.cronometro_timer = QTimer()
         self.cronometro_timer.timeout.connect(self.actualizar_cronometro)
         self.tiempo_inicio = 0  # Segundos transcurridos
-        
 
         # ----- Columna izquierda -----
         left_layout = QVBoxLayout()
@@ -79,11 +80,15 @@ class InterviewScreen(QWidget):
         self.btn_fin = QPushButton("⏹️ Marcar Fin Pregunta")
         self.btn_siguiente = QPushButton("➡️ Siguiente Pregunta")
 
+        # Estilos iniciales para botones de flujo
+        self.btn_siguiente.setStyleSheet("background-color: red; color: white;")
+        self.btn_siguiente.setEnabled(False)
+        self.btn_fin.setEnabled(False)
+
         left_layout.addWidget(self.btn_grabar)
         left_layout.addWidget(self.btn_inicio)
         left_layout.addWidget(self.btn_fin)
         left_layout.addWidget(self.btn_siguiente)
-
 
         self.lbl_cronometro = QLabel("00:00")
         self.lbl_cronometro.setStyleSheet("font-size: 16px; font-weight: bold;")
@@ -156,7 +161,7 @@ class InterviewScreen(QWidget):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.mostrar_frame)
-        self.timer.start(30)
+        self.timer.start(33)  # Aproximadamente 30 FPS
 
         self.actualizar_pregunta()
 
@@ -193,25 +198,82 @@ class InterviewScreen(QWidget):
             if self.is_recording:
                 self.capturador.procesar_frame(frame)
 
-            # Detección de emociones (puedes añadir tu lógica aquí)
-            # Ejemplo: landmarks = detect_emotions(frame)
-
     def actualizar_cronometro(self):
-            self.tiempo_inicio += 1
-            minutos = self.tiempo_inicio // 60
-            segundos = self.tiempo_inicio % 60
-            self.lbl_cronometro.setText(f"{minutos:02d}:{segundos:02d}")
-            
+        self.tiempo_inicio += 1
+        minutos = self.tiempo_inicio // 60
+        segundos = self.tiempo_inicio % 60
+        self.lbl_cronometro.setText(f"{minutos:02d}:{segundos:02d}")
+        
     def toggle_grabacion(self):
         if not self.is_recording:
             try:
-                # Crear directorio de salida
+                # === Generar nombre de entrevista y pedir ID ===
+                videos_path = Path("data/videos_originales")
+                max_num = 0
+                today = datetime.now().strftime('%Y-%m-%d')
+                if videos_path.exists():
+                    for video in videos_path.glob("interview_*.mp4"):
+                        try:
+                            video_id = video.stem.split("interview_")[1]
+                            date_part, num_part = video_id.split("_")
+                            if date_part == today:
+                                num = int(num_part)
+                                max_num = max(max_num, num)
+                        except (IndexError, ValueError):
+                            continue
+                next_num = max_num + 1
+                default_id = f"{today}_{next_num:03d}"
+                nombre_archivo = f"interview_{default_id}.mp4"
+                input_dialog = QInputDialog(self)
+                input_dialog.setWindowTitle("ID de Entrevista")
+                input_dialog.setLabelText("Ingrese el ID de la entrevista:")
+                input_dialog.setTextValue(nombre_archivo)
+                input_dialog.setStyleSheet("""
+                    QInputDialog { color: black; background-color: white; }
+                    QLabel { color: black; background-color: white; }
+                    QLineEdit { color: black; background-color: white; border: 1px solid gray; }
+                    QPushButton { color: black; background-color: lightgray; border: 1px solid gray; padding: 5px 10px; }
+                    QPushButton:hover { background-color: gray; color: white; }
+                """)
+                ok = input_dialog.exec_()
+                entrevista_id = input_dialog.textValue().strip()
+                if not ok:
+                    QMessageBox.information(self, "Cancelado", "La grabación fue cancelada por el usuario.")
+                    return
+                try:
+                    prefix, date_part, num_part_ext = entrevista_id.split("_", 2)
+                    num_part = num_part_ext.split(".")[0]
+                    if prefix != "interview" or date_part != today or not num_part.isdigit():
+                        raise ValueError
+                except ValueError:
+                    QMessageBox.critical(self, "Error", "El nombre debe tener formato: interview_YYYY-MM-DD_NNN.mp4")
+                    return
+                # === Nueva instancia de Entrevista y Marcas ===
+                self.id = f"{date_part}_{num_part}"
+                self.output_file = videos_path / entrevista_id
                 self.output_file.parent.mkdir(parents=True, exist_ok=True)
+                self.entrevista = Entrevista(entrevista_id=self.id)
+                self.capturador = self.entrevista.capturador
+                self.marcas = self.entrevista.marcas
+                self.current_pregunta_id = 1
+                self.categoria_idx = 0
+                self.pregunta_idx = 0
+                # Reset estados de pregunta al iniciar grabación
+                self.pregunta_iniciada = False
+                self.pregunta_finalizada = False
+                self.btn_inicio.setStyleSheet("")
+                self.btn_inicio.setEnabled(True)
+                self.btn_fin.setStyleSheet("")
+                self.btn_fin.setEnabled(False)
+                self.btn_siguiente.setStyleSheet("background-color: red; color: white;")
+                self.btn_siguiente.setEnabled(False)
                 # Iniciar grabación
+                self.tiempo_inicio = 0
+                self.lbl_cronometro.setText("00:00")
                 self.capturador.iniciar_grabacion(str(self.output_file), resolucion="720p", audio="AAC")
                 self.is_recording = True
                 self.start_time = time.time()
-                self.cronometro_timer.start(1000) # Actualizar cada segundo
+                self.cronometro_timer.start(1000)
                 self.btn_grabar.setText("⏹️ Detener Grabación")
                 print(f"Grabación iniciada: {self.output_file}")
             except Exception as e:
@@ -221,8 +283,11 @@ class InterviewScreen(QWidget):
                 self.capturador.detener_grabacion()
                 self.is_recording = False
                 self.start_time = None
+                self.cronometro_timer.stop()
                 self.btn_grabar.setText("🎥 Iniciar Grabación")
-                self.marcas._guardar_marcas_json()
+                # Guardar marcas y exportar json al finalizar
+                if self.marcas:
+                    self.marcas.exportar_json(self.entrevista.marcas_json)
                 print("Grabación detenida")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"No se pudo detener la grabación: {str(e)}")
@@ -242,6 +307,14 @@ class InterviewScreen(QWidget):
             )
             self.marcas.agregar_marca(marca)
             print(f"Marca de inicio creada para pregunta {self.current_pregunta_id} en {timestamp:.2f}s")
+            # Cambiar color del botón a verde y deshabilitarlo
+            self.btn_inicio.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            self.btn_inicio.setEnabled(False)
+            # Actualizar estados
+            self.pregunta_iniciada = True
+            # Habilitar y preparar btn_fin
+            self.btn_fin.setEnabled(True)
+            self.btn_fin.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"No se pudo crear la marca: {str(e)}")
 
@@ -250,6 +323,9 @@ class InterviewScreen(QWidget):
         if not self.is_recording:
             QMessageBox.warning(self, "Advertencia", "Debe iniciar la grabación primero")
             return
+        if not self.pregunta_iniciada:
+            QMessageBox.warning(self, "Advertencia", "Debe marcar el inicio de la pregunta primero")
+            return
         try:
             timestamp = time.time() - self.start_time
             marca = self.marcas.buscar_marcas_por_pregunta_id(self.current_pregunta_id)
@@ -257,6 +333,14 @@ class InterviewScreen(QWidget):
                 marca.fin = timestamp
                 self.marcas._guardar_marcas_json()
                 print(f"Marca de fin actualizada para pregunta {self.current_pregunta_id} en {timestamp:.2f}s")
+                # Actualizar estados
+                self.pregunta_finalizada = True
+                # Cambiar btn_fin a verde
+                self.btn_fin.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+                self.btn_fin.setEnabled(False)
+                # Cambiar btn_siguiente a naranja (listo para click)
+                self.btn_siguiente.setStyleSheet("background-color: orange; color: white; font-weight: bold;")
+                self.btn_siguiente.setEnabled(True)
             else:
                 QMessageBox.warning(self, "Advertencia", "No se encontró una marca de inicio para esta pregunta")
         except Exception as e:
@@ -271,6 +355,9 @@ class InterviewScreen(QWidget):
             self.lbl_pregunta.setText("✅ Entrevista finalizada")
 
     def siguiente_pregunta(self):
+        if not self.pregunta_finalizada:
+            QMessageBox.warning(self, "Advertencia", "Debe marcar el fin de la pregunta primero")
+            return
         self.pregunta_idx += 1
         self.current_pregunta_id += 1
         cat = self.categorias[self.categoria_idx]
@@ -282,11 +369,21 @@ class InterviewScreen(QWidget):
                 self.categoria_idx = len(self.categorias) - 1
                 self.pregunta_idx = len(preguntas_cat)
         self.actualizar_pregunta()
+        # Reset estados y estilos para la nueva pregunta
+        self.pregunta_iniciada = False
+        self.pregunta_finalizada = False
+        self.btn_inicio.setStyleSheet("")
+        self.btn_inicio.setEnabled(True)
+        self.btn_fin.setStyleSheet("")
+        self.btn_fin.setEnabled(False)
+        self.btn_siguiente.setStyleSheet("background-color: red; color: white;")
+        self.btn_siguiente.setEnabled(False)
 
     def closeEvent(self, event):
-        if self.is_recording:
+        if self.is_recording and self.capturador:
             self.capturador.detener_grabacion()
-            self.marcas._guardar_marcas_json()
+            if self.marcas:
+                self.marcas._guardar_marcas_json()
         if self.cap:
             self.cap.release()
         event.accept()

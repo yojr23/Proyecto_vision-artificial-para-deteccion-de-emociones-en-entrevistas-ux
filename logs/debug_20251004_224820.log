@@ -1,0 +1,9 @@
+2025-10-04 22:48:20,999 - INFO - Logging inicializado (nivel=INFO)
+2025-10-04 22:48:20,999 - INFO - Archivo de log: logs/debug_20251004_224820.log
+2025-10-04 22:48:20,999 - INFO -   ndo el programa...
+2025-10-04 22:48:20,999 - INFO - Fecha y hora de inicio: 2025-10-04 22:48:20
+2025-10-04 22:48:21,961 - INFO - Interfaz gráfica lanzada exitosamente
+2025-10-04 22:48:23,908 - INFO - Navegando a Previsualización de Fragmentos
+2025-10-04 22:48:23,912 - ERROR - Error al abrir: PrevisualizacionScreen.__init__() got an unexpected keyword argument 'parent'
+2025-10-04 22:48:34,736 - INFO - Navegando a Previsualización de Fragmentos
+2025-10-04 22:48:34,736 - ERROR - Error al abrir: PrevisualizacionScreen.__init__() got an unexpected keyword argument 'parent'

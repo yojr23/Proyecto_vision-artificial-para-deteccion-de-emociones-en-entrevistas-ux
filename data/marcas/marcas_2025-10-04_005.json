@@ -1,5 +1,13 @@
 {
   "entrevista_id": "2025-10-04_005",
-  "archivo_video": "data/videos_originales/interview_2025-10-04_005.mp4",
-  "marcas": []
+  "archivo_video": "data/videos_originales/entrevista_2025-10-04_005.mp4",
+  "marcas": [
+    {
+      "entrevista_id": "2025-10-04_005",
+      "pregunta_id": 1,
+      "inicio": 6.993898153305054,
+      "fin": 8.528711080551147,
+      "nota": "prueba 2"
+    }
+  ]
 }
