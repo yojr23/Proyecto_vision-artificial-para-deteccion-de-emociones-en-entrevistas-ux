@@ -1,0 +1,7 @@
+2025-10-04 23:44:35,253 - INFO - Logging inicializado (nivel=INFO)
+2025-10-04 23:44:35,254 - INFO - Archivo de log: logs/debug_20251004_234435.log
+2025-10-04 23:44:35,254 - INFO -   ndo el programa...
+2025-10-04 23:44:35,254 - INFO - Fecha y hora de inicio: 2025-10-04 23:44:35
+2025-10-04 23:44:36,295 - INFO - Interfaz gráfica lanzada exitosamente
+2025-10-04 23:44:45,714 - INFO - Abriendo ventana del módulo de fragmentos...
+2025-10-04 23:44:45,785 - ERROR - Error al abrir módulo de fragmentos: type object 'LayoutSettings' has no attribute 'MAIN_MARGIN'

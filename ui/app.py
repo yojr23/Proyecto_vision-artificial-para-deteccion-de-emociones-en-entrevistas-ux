@@ -163,24 +163,6 @@ class App(QMainWindow):
             """)
             icon_label.setFixedHeight(64)
 
-            # Animación de rebote hacia arriba (como la mascota)
-            def make_animated_icon(label):
-                anim = QPropertyAnimation(label, b"pos", label)
-                anim.setDuration(420)
-                anim.setEasingCurve(QEasingCurve.OutBounce)
-                def enterEvent(event):
-                    anim.stop()
-                    anim.setStartValue(label.pos())
-                    anim.setEndValue(label.pos() + QPoint(0, -22))
-                    anim.start()
-                def leaveEvent(event):
-                    anim.stop()
-                    anim.setStartValue(label.pos())
-                    anim.setEndValue(label.pos() + QPoint(0, 22))
-                    anim.start()
-                label.enterEvent = enterEvent
-                label.leaveEvent = leaveEvent
-            make_animated_icon(icon_label)
 
             card_layout.addWidget(icon_label)
 

@@ -1,0 +1,7 @@
+2025-10-04 23:48:56,638 - INFO - Logging inicializado (nivel=INFO)
+2025-10-04 23:48:56,638 - INFO - Archivo de log: logs/debug_20251004_234856.log
+2025-10-04 23:48:56,638 - INFO -   ndo el programa...
+2025-10-04 23:48:56,638 - INFO - Fecha y hora de inicio: 2025-10-04 23:48:56
+2025-10-04 23:48:57,395 - INFO - Interfaz gráfica lanzada exitosamente
+2025-10-04 23:49:00,140 - INFO - Abriendo ventana del módulo de fragmentos...
+2025-10-04 23:49:00,180 - ERROR - Error al abrir módulo de fragmentos: type object 'GradientStyles' has no attribute 'subtle_card_gradient'
