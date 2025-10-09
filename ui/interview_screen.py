@@ -26,6 +26,7 @@ class DataBridge(QObject):
     updateData = Signal(dict)  # ya existente
     updatePregunta = Signal(str, int)  # categoría, índice de pregunta
 
+    @Slot(int, int, int, int)
     def setValues(self, humedad, temperatura, lluvia, viento):
         self.updateData.emit({
             "humedad": humedad,
@@ -34,6 +35,12 @@ class DataBridge(QObject):
             "viento": viento
         })
 
+    @Slot()
+    def ping(self):
+        """Slot de diagnóstico: invocarlo desde JS para comprobar conectividad."""
+        print("[DEBUG] DataBridge.ping() recibido desde JS")
+
+    @Slot(dict)
     def on_update_data(self, data):
         """Reenviar los datos recibidos desde controls.html al entrevistado"""
         if hasattr(self, "entrevistado_window"):

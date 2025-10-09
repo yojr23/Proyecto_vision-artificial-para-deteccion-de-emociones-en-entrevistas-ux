@@ -9,6 +9,8 @@ from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtGui import QFont
 from pathlib import Path
 
+from functools import partial
+
 from classes.entrevista_preguntas import EntrevistaPreguntas
 
 # ---- Paleta de colores agrícolas ----
@@ -32,20 +34,40 @@ COLOR_PALETTE = {
 class DataBridge(QObject):
     updateData = Signal(dict)
     updatePregunta = Signal(str, int)
+    
+    def __init__(self):
+        super().__init__()
+        self._current_values = {
+            "humedad": 75,
+            "temperatura": 28, 
+            "lluvia": 15,
+            "viento": 12
+        }
 
     @Slot(int, int, int, int)
     def setValues(self, humedad, temperatura, lluvia, viento):
-        self.updateData.emit({
+        print(f"🔧 Bridge recibió valores: H={humedad}, T={temperatura}, L={lluvia}, V={viento}")
+        self._current_values = {
             "humedad": humedad,
             "temperatura": temperatura,
             "lluvia": lluvia,
             "viento": viento
-        })
+        }
+        self.updateData.emit(self._current_values)
+
+    @Slot()
+    def ping(self):
+        print("[DEBUG] Interviewee DataBridge.ping() recibido desde JS")
 
     @Slot(str, int)
     def setPregunta(self, categoria, pregunta_idx):
         """Slot que puede ser llamado desde JS o desde otro bridge para propagar la pregunta."""
+        print(f"🔧 Bridge recibió pregunta: {categoria}, índice: {pregunta_idx}")
         self.updatePregunta.emit(categoria, pregunta_idx)
+    
+    def get_current_values(self):
+        """Obtener los valores actuales"""
+        return self._current_values
 
 
 class IntervieweeScreen(QWidget):
@@ -54,9 +76,8 @@ class IntervieweeScreen(QWidget):
     def __init__(self, bridge: DataBridge):
         super().__init__()
         self.setWindowTitle("🌱 Entrevista UX - Pantalla Entrevistado")
-        self.resize(1400, 900)
+        self.resize(1600, 1000)
         
-        # Aplicar paleta de colores global
         self.setStyleSheet(f"""
             QWidget {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
@@ -74,155 +95,36 @@ class IntervieweeScreen(QWidget):
         self.categorias = list(self.preguntas.preguntas.keys())
         self.categoria_idx = 0
         self.pregunta_idx = 0
-        self.webviews_loaded = {}  # Track carga de webviews
+        self.webviews_loaded = {}
+        self.web_channels = {}
+        self.current_carta_id = None
+        
+        self.tiempo_inicio = 0
+        self.total_preguntas = sum(len(self.preguntas.obtener_preguntas(c)) for c in self.categorias)
+        self.preguntas_completadas = 0
 
         self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(20)
-        self.layout.setContentsMargins(30, 30, 30, 30)
+        self.layout.setSpacing(15)
+        self.layout.setContentsMargins(25, 25, 25, 25)
 
         # Conectar señales
         self.bridge.updateData.connect(self.on_update_data)
         self.bridge.updatePregunta.connect(self.actualizar_desde_bridge)
 
-        # Crear interfaz
         self.crear_header()
         self.crear_area_pregunta()
         self.crear_tabs_visuales()
         self.crear_footer()
 
-        # Mostrar la primera pregunta
-        QTimer.singleShot(500, self.actualizar_pregunta)  # Pequeño delay para asegurar carga
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.actualizar_cronometro)
+        self.timer.start(1000)
 
-    def crear_header(self):
-        """Crear encabezado con diseño agrícola"""
-        header_frame = QFrame()
-        header_frame.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 rgba(46, 125, 50, 0.9),
-                    stop:0.5 rgba(56, 142, 60, 0.85),
-                    stop:1 rgba(76, 175, 80, 0.8));
-                border-radius: 25px;
-                border: 3px solid rgba(255, 255, 255, 0.3);
-                padding: 20px;
-            }}
-        """)
-        header_layout = QVBoxLayout(header_frame)
-        header_layout.setSpacing(15)
-
-        # Título principal
-        title = QLabel("🎯 Pantalla del Entrevistado")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
-            QLabel {
-                color: white;
-                background: transparent;
-                padding: 10px;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            }
-        """)
-        header_layout.addWidget(title)
-
-        # Subtítulo
-        subtitle = QLabel("Interfaz para visualización de prototipos durante la entrevista UX")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("""
-            QLabel {
-                color: #e8f5e9;
-                background: rgba(255, 255, 255, 0.1);
-                padding: 8px 20px;
-                border-radius: 15px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            }
-        """)
-        header_layout.addWidget(subtitle)
-
-        self.layout.addWidget(header_frame)
-
-    def crear_area_pregunta(self):
-        """Crear área para mostrar la pregunta actual"""
-        pregunta_frame = QFrame()
-        pregunta_frame.setStyleSheet(f"""
-            QFrame {{
-                background: rgba(255, 255, 255, 0.95);
-                border-radius: 20px;
-                border: 3px solid {COLOR_PALETTE['LIGHT_GREEN']};
-                padding: 25px;
-            }}
-        """)
-        pregunta_layout = QVBoxLayout(pregunta_frame)
-
-        # Etiqueta de categoría
-        self.lbl_categoria = QLabel()
-        self.lbl_categoria.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        self.lbl_categoria.setStyleSheet("""
-            QLabel {
-                color: #1b5e20;
-                background: rgba(232, 245, 233, 0.8);
-                padding: 8px 15px;
-                border-radius: 10px;
-                border: 1px solid #a5d6a7;
-            }
-        """)
-        pregunta_layout.addWidget(self.lbl_categoria)
-
-        # Pregunta actual
-        self.lbl_pregunta = QLabel()
-        self.lbl_pregunta.setWordWrap(True)
-        self.lbl_pregunta.setFont(QFont("Segoe UI", 18))
-        self.lbl_pregunta.setStyleSheet("""
-            QLabel {
-                color: black;
-                background: rgba(248, 255, 248, 0.9);
-                padding: 20px;
-                border-radius: 15px;
-                border: 2px solid #c8e6c9;
-                line-height: 1.4;
-            }
-        """)
-        pregunta_layout.addWidget(self.lbl_pregunta)
-
-        # Barra de progreso de la entrevista
-        self.progress_frame = QFrame()
-        self.progress_frame.setStyleSheet("""
-            QFrame {
-                background: transparent;
-                border: none;
-            }
-        """)
-        progress_layout = QHBoxLayout(self.progress_frame)
-        
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 2px solid #c8e6c9;
-                border-radius: 10px;
-                text-align: center;
-                background: #f1f8e9;
-                height: 20px;
-                color: black;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4caf50, stop:1 #2e7d32);
-                border-radius: 8px;
-            }
-        """)
-        progress_layout.addWidget(self.progress_bar)
-        
-        self.lbl_progreso = QLabel()
-        self.lbl_progreso.setFont(QFont("Segoe UI", 11))
-        self.lbl_progreso.setStyleSheet("color: #555; padding: 5px;")
-        progress_layout.addWidget(self.lbl_progreso)
-        
-        pregunta_layout.addWidget(self.progress_frame)
-
-        self.layout.addWidget(pregunta_frame)
+        # Mostrar la primera pregunta inmediatamente
+        self.actualizar_pregunta()
 
     def crear_tabs_visuales(self):
-        """Crear tabs para los prototipos visuales"""
+        """Crear tabs para los prototipos visuales - VERSIÓN SIMPLIFICADA"""
         self.tabs_container = QFrame()
         self.tabs_container.setStyleSheet("""
             QFrame {
@@ -231,15 +133,15 @@ class IntervieweeScreen(QWidget):
             }
         """)
         tabs_layout = QVBoxLayout(self.tabs_container)
+        tabs_layout.setSpacing(8)
+        tabs_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Título de las tabs
         self.tabs_title = QLabel("📊 Prototipos Visuales")
-        self.tabs_title.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        self.tabs_title.setStyleSheet("color: white; padding: 10px;")
+        self.tabs_title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.tabs_title.setStyleSheet("color: white; padding: 8px;")
         self.tabs_title.setAlignment(Qt.AlignCenter)
         tabs_layout.addWidget(self.tabs_title)
 
-        # Widget de tabs
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
@@ -254,11 +156,11 @@ class IntervieweeScreen(QWidget):
                 border-bottom: none;
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;
-                padding: 12px 20px;
+                padding: 10px 18px;
                 margin-right: 2px;
                 color: black;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
             }
             QTabBar::tab:selected {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -284,123 +186,111 @@ class IntervieweeScreen(QWidget):
                     border: 2px solid #e8f5e9;
                 }
             """)
+            view.setMinimumHeight(500)
             
-            channel = QWebChannel(view.page())
+            # Configuración básica del WebChannel
+            channel = QWebChannel()
             channel.registerObject("bridge", self.bridge)
             view.page().setWebChannel(channel)
-            
-            # Verificar que el archivo existe
+            self.web_channels[i] = channel
+
+            # Cargar el archivo HTML
             tarjetas_path = Path("ui/entrevista_ui/tarjetas.html").resolve()
-            if not tarjetas_path.exists():
-                QMessageBox.critical(self, "Error", f"No se encontró el archivo: {tarjetas_path}")
-                # Crear un HTML básico como fallback
-                view.setHtml(f"""
-                    <html>
-                    <body style='background: #f8fff8; color: black; font-family: Arial; padding: 20px;'>
-                        <h2>Prototipo: {self.tab_names[i]}</h2>
-                        <p>Archivo tarjetas.html no encontrado en:</p>
-                        <code>{tarjetas_path}</code>
-                        <p>Esta pestaña mostraría: {carta_id}</p>
-                    </body>
-                    </html>
-                """)
-            else:
-                print(f"Cargando: {tarjetas_path}")
+            if tarjetas_path.exists():
+                print(f"📁 Cargando archivo: {tarjetas_path}")
                 view.load(QUrl.fromLocalFile(str(tarjetas_path)))
+            else:
+                # HTML de fallback simple
+                fallback_html = f"""
+                <html><body style='background: #f8fff8; padding: 20px;'>
+                    <h2>{self.tab_names[i]}</h2>
+                    <p>Cargando interfaz...</p>
+                </body></html>
+                """
+                view.setHtml(fallback_html)
+                print(f"⚠️  Usando HTML de fallback para tab {i}")
             
             # Conectar señal de carga completada
-            view.loadFinished.connect(lambda ok, idx=i: self.on_webview_loaded(ok, idx))
+            view.loadFinished.connect(partial(self.on_webview_loaded, index=i, carta_id=carta_id))
             self.webviews[i] = view
-            self.webviews_loaded[i] = False  # Inicializar como no cargado
+            self.webviews_loaded[i] = False
             self.tabs.addTab(view, self.tab_names[i])
 
-        self.tabs.hide()  # Ocultar al inicio
+        # Ocultar tabs al inicio - se mostrarán según la categoría
+        self.tabs.hide()
+        self.tabs_title.hide()
         tabs_layout.addWidget(self.tabs)
+        self.layout.addWidget(self.tabs_container, stretch=1)
 
-        self.layout.addWidget(self.tabs_container)
-
-    def on_webview_loaded(self, ok, index):
+    def on_webview_loaded(self, ok, index, carta_id):
         """Callback cuando un WebView termina de cargar"""
         if ok:
             self.webviews_loaded[index] = True
-            print(f"WebView {index} cargado correctamente")
+            print(f"✅ WebView {index} cargado correctamente")
+            
+            # Forzar que esta webview muestre su carta correspondiente después de un pequeño delay
+            QTimer.singleShot(500, lambda idx=index, cid=carta_id: self.mostrar_carta_simple(idx, cid))
+
+            # Enviar datos actuales si están disponibles (un poco después)
+            QTimer.singleShot(1000, lambda idx=index: self.enviar_datos_simple(idx))
         else:
-            print(f"Error cargando WebView {index}")
+            print(f"❌ Error cargando WebView {index}")
 
-    def crear_footer(self):
-        """Crear pie de página con información"""
-        footer_frame = QFrame()
-        footer_frame.setStyleSheet(f"""
-            QFrame {{
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 15px;
-                border: 2px solid {COLOR_PALETTE['PALE_GREEN']};
-                padding: 15px;
-            }}
-        """)
-        footer_layout = QHBoxLayout(footer_frame)
+    def mostrar_carta_simple(self, tab_index, carta_id):
+        """Mostrar carta de manera simple"""
+        if tab_index in self.webviews and self.webviews_loaded.get(tab_index, False):
+            js_code = f"mostrarCarta('{carta_id}')"
+            self.webviews[tab_index].page().runJavaScript(js_code)
+            print(f"📋 Mostrando carta: {carta_id} en tab {tab_index}")
 
-        # Cronómetro
-        timer_frame = QFrame()
-        timer_frame.setStyleSheet("""
-            QFrame {
-                background: rgba(232, 245, 233, 0.8);
-                border-radius: 10px;
-                border: 1px solid #a5d6a7;
-                padding: 10px;
-            }
-        """)
-        timer_layout = QHBoxLayout(timer_frame)
+    def enviar_datos_simple(self, tab_index):
+        """Enviar datos actuales a un WebView"""
+        if tab_index in self.webviews and self.webviews_loaded.get(tab_index, False):
+            try:
+                # Usar los valores actuales del bridge
+                current_values = self.bridge._current_values
+                js_code = f"""
+                    if (typeof actualizarTodo === 'function') {{
+                        actualizarTodo({current_values['humedad']}, {current_values['temperatura']}, {current_values['lluvia']}, {current_values['viento']});
+                    }}
+                """
+                self.webviews[tab_index].page().runJavaScript(js_code)
+                print(f"📊 Datos enviados a tab {tab_index}: {current_values}")
+            except Exception as e:
+                print(f"❌ Error enviando datos a tab {tab_index}: {e}")
+
+    @Slot(dict)
+    def on_update_data(self, data):
+        """Actualizar las vistas HTML con los datos del entrevistador"""
+        print(f"🔄 Actualizando datos en WebViews: {data}")
         
-        timer_icon = QLabel("⏱️")
-        timer_icon.setFont(QFont("Segoe UI", 14))
-        timer_layout.addWidget(timer_icon)
-        
-        self.cronometro = QLabel("00:00")
-        self.cronometro.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        self.cronometro.setStyleSheet("color: #1b5e20;")
-        timer_layout.addWidget(self.cronometro)
-        
-        footer_layout.addWidget(timer_frame)
-
-        # Información de estado
-        self.lbl_estado = QLabel("🟢 Entrevista en curso")
-        self.lbl_estado.setFont(QFont("Segoe UI", 12))
-        self.lbl_estado.setStyleSheet("color: #2e7d32; background: rgba(200, 230, 201, 0.7); padding: 8px 15px; border-radius: 8px;")
-        footer_layout.addWidget(self.lbl_estado)
-
-        footer_layout.addStretch()
-
-        self.layout.addWidget(footer_frame)
-
-        # Inicializar timer
-        self.tiempo_inicio = 0
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.actualizar_cronometro)
-        self.timer.start(1000)
+        for i, view in self.webviews.items():
+            if self.webviews_loaded.get(i, False):
+                js_code = f"actualizarTodo({data['humedad']}, {data['temperatura']}, {data['lluvia']}, {data['viento']})"
+                view.page().runJavaScript(js_code)
+                print(f"🔄 Ejecutando JS en view {i}: {js_code}")
 
     def actualizar_pregunta(self):
         """Actualiza el texto de la pregunta y muestra/oculta tabs según categoría"""
         cat = self.categorias[self.categoria_idx]
         preguntas_cat = self.preguntas.obtener_preguntas(cat)
         
-        # Actualizar barra de progreso
-        total_preguntas = sum(len(self.preguntas.obtener_preguntas(c)) for c in self.categorias)
-        preguntas_completadas = sum(len(self.preguntas.obtener_preguntas(self.categorias[i])) 
-                                  for i in range(self.categoria_idx)) + self.pregunta_idx
-        progreso = int((preguntas_completadas / total_preguntas) * 100) if total_preguntas > 0 else 0
+        # Calcular progreso
+        self.preguntas_completadas = sum(
+            len(self.preguntas.obtener_preguntas(self.categorias[i])) 
+            for i in range(self.categoria_idx)
+        ) + self.pregunta_idx
+        
+        progreso = int((self.preguntas_completadas / self.total_preguntas) * 100) if self.total_preguntas > 0 else 0
         
         self.progress_bar.setValue(progreso)
-        self.lbl_progreso.setText(f"{preguntas_completadas}/{total_preguntas} preguntas")
+        self.lbl_progreso.setText(f"{self.preguntas_completadas}/{self.total_preguntas} preguntas")
 
         if self.pregunta_idx < len(preguntas_cat):
-            # Actualizar categoría
             self.lbl_categoria.setText(f"📁 Categoría: {cat}")
-            
-            # Actualizar pregunta
             pregunta_texto = preguntas_cat[self.pregunta_idx]['texto']
             self.lbl_pregunta.setText(pregunta_texto)
-            print(f"Mostrando pregunta: {cat} - Índice: {self.pregunta_idx}")
+            print(f"📝 Mostrando pregunta: {cat} - Índice: {self.pregunta_idx}")
         else:
             self.lbl_pregunta.setText("✅ ¡Entrevista finalizada!")
             self.lbl_categoria.setText("🎉 Completado")
@@ -409,33 +299,214 @@ class IntervieweeScreen(QWidget):
             self.tabs_title.hide()
             return
 
-        # Mostrar tabs solo para categorías visuales
+        # Mostrar tabs solo para categorías visuales - CORREGIDO
         if cat in self.VISUAL_CATEGORIES:
             self.tabs.show()
             self.tabs_title.show()
-            # Mostrar la carta correspondiente con un pequeño delay
+            
             idx = self.VISUAL_CATEGORIES.index(cat)
             self.tabs.setCurrentIndex(idx)
-            print(f"Mostrando tab visual: {self.tab_names[idx]} para categoría: {cat}")
+            self.current_carta_id = self.carta_ids[idx]
             
-            # Esperar a que el WebView esté cargado antes de mostrar la carta
+            print(f"🎨 Mostrando tab visual: {self.tab_names[idx]} para categoría: {cat}")
+            
+            # Mostrar la carta correspondiente
             if self.webviews_loaded.get(idx, False):
-                self.mostrar_carta(idx, self.carta_ids[idx])
+                self.mostrar_carta_simple(idx, self.carta_ids[idx])
             else:
-                # Si no está cargado, intentar después de un delay
-                QTimer.singleShot(1000, lambda: self.mostrar_carta(idx, self.carta_ids[idx]))
+                print(f"⏳ WebView {idx} no está listo, reintentando...")
+                QTimer.singleShot(1000, lambda: self.mostrar_carta_simple(idx, self.carta_ids[idx]))
+
         else:
             self.tabs.hide()
             self.tabs_title.hide()
-            print(f"Ocultando tabs - Categoría no visual: {cat}")
+            self.current_carta_id = None
+            print(f"🔍 Ocultando tabs - Categoría no visual: {cat}")
 
     def actualizar_desde_bridge(self, categoria, pregunta_idx):
         """Actualiza la pregunta y tabs según la señal del entrevistador"""
-        print(f"Actualizando desde bridge: {categoria}, índice: {pregunta_idx}")
+        print(f"🔄 Actualizando desde bridge: {categoria}, índice: {pregunta_idx}")
         if categoria in self.categorias:
             self.categoria_idx = self.categorias.index(categoria)
             self.pregunta_idx = pregunta_idx
             self.actualizar_pregunta()
+
+    def crear_header(self):
+        """Crear encabezado con diseño agrícola"""
+        header_frame = QFrame()
+        header_frame.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(46, 125, 50, 0.9),
+                    stop:0.5 rgba(56, 142, 60, 0.85),
+                    stop:1 rgba(76, 175, 80, 0.8));
+                border-radius: 20px;
+                border: 3px solid rgba(255, 255, 255, 0.3);
+                padding: 15px;
+            }}
+        """)
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setSpacing(10)
+
+        # Título principal
+        title = QLabel("🎯 Pantalla del Entrevistado")
+        title.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("""
+            QLabel {
+                color: white;
+                background: transparent;
+                padding: 8px;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            }
+        """)
+        header_layout.addWidget(title)
+
+        # Subtítulo
+        subtitle = QLabel("Interfaz para visualización de prototipos durante la entrevista UX")
+        subtitle.setFont(QFont("Segoe UI", 13))
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("""
+            QLabel {
+                color: #e8f5e9;
+                background: rgba(255, 255, 255, 0.1);
+                padding: 6px 15px;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+        """)
+        header_layout.addWidget(subtitle)
+
+        self.layout.addWidget(header_frame)
+
+    def crear_area_pregunta(self):
+        """Crear área para mostrar la pregunta actual"""
+        pregunta_frame = QFrame()
+        pregunta_frame.setStyleSheet(f"""
+            QFrame {{
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 18px;
+                border: 3px solid {COLOR_PALETTE['LIGHT_GREEN']};
+                padding: 20px;
+            }}
+        """)
+        pregunta_frame.setMaximumHeight(220)
+        pregunta_layout = QVBoxLayout(pregunta_frame)
+        pregunta_layout.setSpacing(8)
+
+        # Etiqueta de categoría
+        self.lbl_categoria = QLabel()
+        self.lbl_categoria.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self.lbl_categoria.setStyleSheet("""
+            QLabel {
+                color: #1b5e20;
+                background: rgba(232, 245, 233, 0.8);
+                padding: 6px 12px;
+                border-radius: 8px;
+                border: 1px solid #a5d6a7;
+            }
+        """)
+        pregunta_layout.addWidget(self.lbl_categoria)
+
+        # Pregunta actual
+        self.lbl_pregunta = QLabel()
+        self.lbl_pregunta.setWordWrap(True)
+        self.lbl_pregunta.setFont(QFont("Segoe UI", 16))
+        self.lbl_pregunta.setStyleSheet("""
+            QLabel {
+                color: black;
+                background: rgba(248, 255, 248, 0.9);
+                padding: 15px;
+                border-radius: 12px;
+                border: 2px solid #c8e6c9;
+                line-height: 1.3;
+            }
+        """)
+        pregunta_layout.addWidget(self.lbl_pregunta)
+
+        # Barra de progreso de la entrevista
+        self.progress_frame = QFrame()
+        self.progress_frame.setStyleSheet("""
+            QFrame {
+                background: transparent;
+                border: none;
+            }
+        """)
+        progress_layout = QHBoxLayout(self.progress_frame)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #c8e6c9;
+                border-radius: 8px;
+                text-align: center;
+                background: #f1f8e9;
+                height: 18px;
+                color: black;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4caf50, stop:1 #2e7d32);
+                border-radius: 6px;
+            }
+        """)
+        progress_layout.addWidget(self.progress_bar)
+        
+        self.lbl_progreso = QLabel()
+        self.lbl_progreso.setFont(QFont("Segoe UI", 10))
+        self.lbl_progreso.setStyleSheet("color: #555; padding: 3px;")
+        progress_layout.addWidget(self.lbl_progreso)
+        
+        pregunta_layout.addWidget(self.progress_frame)
+
+        self.layout.addWidget(pregunta_frame)
+
+    def crear_footer(self):
+        """Crear pie de página con información"""
+        footer_frame = QFrame()
+        footer_frame.setStyleSheet(f"""
+            QFrame {{
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 12px;
+                border: 2px solid {COLOR_PALETTE['PALE_GREEN']};
+                padding: 10px;
+            }}
+        """)
+        footer_frame.setMaximumHeight(60)
+        footer_layout = QHBoxLayout(footer_frame)
+
+        # Cronómetro
+        timer_frame = QFrame()
+        timer_frame.setStyleSheet("""
+            QFrame {
+                background: rgba(232, 245, 233, 0.8);
+                border-radius: 8px;
+                border: 1px solid #a5d6a7;
+                padding: 8px;
+            }
+        """)
+        timer_layout = QHBoxLayout(timer_frame)
+        
+        timer_icon = QLabel("⏱️")
+        timer_icon.setFont(QFont("Segoe UI", 13))
+        timer_layout.addWidget(timer_icon)
+        
+        self.cronometro = QLabel("00:00")
+        self.cronometro.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+        self.cronometro.setStyleSheet("color: #1b5e20;")
+        timer_layout.addWidget(self.cronometro)
+        
+        footer_layout.addWidget(timer_frame)
+
+        # Información de estado
+        self.lbl_estado = QLabel("🟢 Entrevista en curso")
+        self.lbl_estado.setFont(QFont("Segoe UI", 11))
+        self.lbl_estado.setStyleSheet("color: #2e7d32; background: rgba(200, 230, 201, 0.7); padding: 6px 12px; border-radius: 6px;")
+        footer_layout.addWidget(self.lbl_estado)
+
+        footer_layout.addStretch()
+
+        self.layout.addWidget(footer_frame)
 
     def siguiente_pregunta(self):
         """Avanza a la siguiente pregunta y actualiza la vista"""
@@ -456,27 +527,8 @@ class IntervieweeScreen(QWidget):
                 
         self.actualizar_pregunta()
 
-    @Slot(dict)
-    def on_update_data(self, data):
-        """Actualizar las vistas HTML con los datos del entrevistador"""
-        print(f"Actualizando datos en WebViews: {data}")
-        for i, view in self.webviews.items():
-            if self.webviews_loaded.get(i, False):
-                js_code = f"actualizarTodo({data['humedad']}, {data['temperatura']}, {data['lluvia']}, {data['viento']})"
-                view.page().runJavaScript(js_code)
-                print(f"Ejecutando JS en view {i}: {js_code}")
-
-    def mostrar_carta(self, tab_index, carta_id):
-        """Ejecuta la función JS mostrarCarta en la tab correspondiente"""
-        if tab_index in self.webviews and self.webviews_loaded.get(tab_index, False):
-            js_code = f"mostrarCarta('{carta_id}')"
-            self.webviews[tab_index].page().runJavaScript(js_code)
-            print(f"Mostrando carta: {carta_id} en tab {tab_index}")
-        else:
-            print(f"WebView {tab_index} no está listo para mostrar carta {carta_id}")
-
     def actualizar_cronometro(self):
-        """Actualizar el cronómetro"""
+        """Actualizar el cronómetro (continúa sin reiniciarse)"""
         self.tiempo_inicio += 1
         minutos = self.tiempo_inicio // 60
         segundos = self.tiempo_inicio % 60
@@ -485,8 +537,6 @@ class IntervieweeScreen(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    
-    # Configurar paleta de colores global
     app.setStyle('Fusion')
     
     bridge = DataBridge()

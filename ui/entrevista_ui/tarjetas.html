@@ -429,30 +429,75 @@
         </div>
     </div>
 
-    <script>
+   <script>
         // Inicializar QWebChannel
         let bridge = null;
-        new QWebChannel(qt.webChannelTransport, function(channel) {
-            console.log("QWebChannel inicializado en tarjetas.html");
-            bridge = channel.objects.bridge;
-            if (!bridge) {
-                console.error("Error: bridge no está definido");
-                return;
+        
+        // Función para inicializar el bridge de manera robusta
+        function inicializarBridge() {
+            if (typeof qt !== 'undefined' && qt.webChannelTransport) {
+                try {
+                    new QWebChannel(qt.webChannelTransport, function(channel) {
+                        console.log("✅ QWebChannel inicializado en tarjetas.html");
+                        bridge = channel.objects.bridge;
+                        
+                        if (bridge) {
+                            console.log("✅ Bridge conectado correctamente");
+                            
+                            // Conectar señal de actualización de datos
+                            if (typeof bridge.updateData !== 'undefined') {
+                                bridge.updateData.connect(function(data) {
+                                    console.log("📡 Datos recibidos desde Python:", data);
+                                    actualizarTodo(data.humedad, data.temperatura, data.lluvia, data.viento);
+                                });
+                            } else {
+                                console.warn("⚠️ updateData no disponible en el bridge");
+                            }
+                            
+                            console.log("🚀 Bridge listo para usar");
+                        } else {
+                            console.error("❌ Error: bridge no disponible en el channel");
+                        }
+                    });
+                } catch (error) {
+                    console.error("❌ Error inicializando QWebChannel:", error);
+                    // Reintentar después de un tiempo
+                    setTimeout(inicializarBridge, 1000);
+                }
+            } else {
+                console.log("⏳ QWebChannel no disponible aún, reintentando...");
+                setTimeout(inicializarBridge, 500);
             }
-            // Actualizar interfaces con datos del puente
-            bridge.updateData.connect(function(data) {
-                console.log("Recibido updateData en tarjetas.html:", data);
-                actualizarTodo(data.humedad, data.temperatura, data.lluvia, data.viento);
-            });
-        });
+        }
+
+        // Función segura para llamar al bridge
+        function llamarBridgeSetValues(h, t, l, v) {
+            if (bridge && typeof bridge.setValues === 'function') {
+                try {
+                    bridge.setValues(h, t, l, v);
+                    console.log("📤 Valores enviados al bridge:", {humedad: h, temperatura: t, lluvia: l, viento: v});
+                } catch (error) {
+                    console.error("❌ Error llamando setValues:", error);
+                }
+            } else {
+                console.warn("⚠️ Bridge no disponible para setValues");
+            }
+        }
 
         // Mostrar solo una carta a la vez
         function mostrarCarta(nombre) {
-            console.log("Mostrando carta:", nombre);
+            console.log("📋 Mostrando carta:", nombre);
             const ids = ["carta-semaforo", "carta-visuales", "carta-tabla"];
             ids.forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.style.display = (id === nombre) ? "block" : "none";
+                if (el) {
+                    if (id === nombre) {
+                        el.style.display = "block";
+                        console.log("✅ Mostrando: " + id);
+                    } else {
+                        el.style.display = "none";
+                    }
+                }
             });
         }
 
@@ -470,29 +515,34 @@
                 amarillo: document.getElementById('luzAmarilloHumedad'),
                 rojo: document.getElementById('luzRojoHumedad')
             };
-            [lucesHumedad.verde, lucesHumedad.amarillo, lucesHumedad.rojo].forEach(luz => {
-                luz.classList.remove('activa', 'inactiva');
-                luz.classList.add('inactiva');
-            });
-            if (humedad >= 60) {
-                lucesHumedad.verde.classList.remove('inactiva');
-                lucesHumedad.verde.classList.add('activa');
-                document.getElementById('humedadTexto').textContent = 'Humedad Óptima';
-                document.getElementById('humedadTexto').style.background = '#4CAF50';
-                document.getElementById('humedadTexto').style.color = 'white';
-            } else if (humedad >= 30) {
-                lucesHumedad.amarillo.classList.remove('inactiva');
-                lucesHumedad.amarillo.classList.add('activa');
-                document.getElementById('humedadTexto').textContent = 'Requiere Atención';
-                document.getElementById('humedadTexto').style.background = '#FFC107';
-                document.getElementById('humedadTexto').style.color = 'white';
-            } else {
-                lucesHumedad.rojo.classList.remove('inactiva');
-                lucesHumedad.rojo.classList.add('activa');
-                document.getElementById('humedadTexto').textContent = 'Suelo Seco - Riesgo';
-                document.getElementById('humedadTexto').style.background = '#F44336';
-                document.getElementById('humedadTexto').style.color = 'white';
+            
+            if (lucesHumedad.verde && lucesHumedad.amarillo && lucesHumedad.rojo) {
+                [lucesHumedad.verde, lucesHumedad.amarillo, lucesHumedad.rojo].forEach(luz => {
+                    luz.classList.remove('activa', 'inactiva');
+                    luz.classList.add('inactiva');
+                });
+                
+                if (humedad >= 60) {
+                    lucesHumedad.verde.classList.remove('inactiva');
+                    lucesHumedad.verde.classList.add('activa');
+                    document.getElementById('humedadTexto').textContent = 'Humedad Óptima';
+                    document.getElementById('humedadTexto').style.background = '#4CAF50';
+                    document.getElementById('humedadTexto').style.color = 'white';
+                } else if (humedad >= 30) {
+                    lucesHumedad.amarillo.classList.remove('inactiva');
+                    lucesHumedad.amarillo.classList.add('activa');
+                    document.getElementById('humedadTexto').textContent = 'Requiere Atención';
+                    document.getElementById('humedadTexto').style.background = '#FFC107';
+                    document.getElementById('humedadTexto').style.color = 'white';
+                } else {
+                    lucesHumedad.rojo.classList.remove('inactiva');
+                    lucesHumedad.rojo.classList.add('activa');
+                    document.getElementById('humedadTexto').textContent = 'Suelo Seco - Riesgo';
+                    document.getElementById('humedadTexto').style.background = '#F44336';
+                    document.getElementById('humedadTexto').style.color = 'white';
+                }
             }
+            
             document.getElementById('humedadNivel').textContent = humedad + '%';
 
             // Semáforo de temperatura
@@ -501,29 +551,34 @@
                 amarillo: document.getElementById('luzAmarilloTemperatura'),
                 rojo: document.getElementById('luzRojoTemperatura')
             };
-            [lucesTemperatura.verde, lucesTemperatura.amarillo, lucesTemperatura.rojo].forEach(luz => {
-                luz.classList.remove('activa', 'inactiva');
-                luz.classList.add('inactiva');
-            });
-            if (temperatura >= 20 && temperatura <= 30) {
-                lucesTemperatura.verde.classList.remove('inactiva');
-                lucesTemperatura.verde.classList.add('activa');
-                document.getElementById('temperaturaTexto').textContent = 'Temperatura Óptima';
-                document.getElementById('temperaturaTexto').style.background = '#4CAF50';
-                document.getElementById('temperaturaTexto').style.color = 'white';
-            } else if ((temperatura >= 15 && temperatura < 20) || (temperatura > 30 && temperatura <= 35)) {
-                lucesTemperatura.amarillo.classList.remove('inactiva');
-                lucesTemperatura.amarillo.classList.add('activa');
-                document.getElementById('temperaturaTexto').textContent = 'Temperatura Moderada';
-                document.getElementById('temperaturaTexto').style.background = '#FFC107';
-                document.getElementById('temperaturaTexto').style.color = 'white';
-            } else {
-                lucesTemperatura.rojo.classList.remove('inactiva');
-                lucesTemperatura.rojo.classList.add('activa');
-                document.getElementById('temperaturaTexto').textContent = 'Temperatura Extrema';
-                document.getElementById('temperaturaTexto').style.background = '#F44336';
-                document.getElementById('temperaturaTexto').style.color = 'white';
+            
+            if (lucesTemperatura.verde && lucesTemperatura.amarillo && lucesTemperatura.rojo) {
+                [lucesTemperatura.verde, lucesTemperatura.amarillo, lucesTemperatura.rojo].forEach(luz => {
+                    luz.classList.remove('activa', 'inactiva');
+                    luz.classList.add('inactiva');
+                });
+                
+                if (temperatura >= 20 && temperatura <= 30) {
+                    lucesTemperatura.verde.classList.remove('inactiva');
+                    lucesTemperatura.verde.classList.add('activa');
+                    document.getElementById('temperaturaTexto').textContent = 'Temperatura Óptima';
+                    document.getElementById('temperaturaTexto').style.background = '#4CAF50';
+                    document.getElementById('temperaturaTexto').style.color = 'white';
+                } else if ((temperatura >= 15 && temperatura < 20) || (temperatura > 30 && temperatura <= 35)) {
+                    lucesTemperatura.amarillo.classList.remove('inactiva');
+                    lucesTemperatura.amarillo.classList.add('activa');
+                    document.getElementById('temperaturaTexto').textContent = 'Temperatura Moderada';
+                    document.getElementById('temperaturaTexto').style.background = '#FFC107';
+                    document.getElementById('temperaturaTexto').style.color = 'white';
+                } else {
+                    lucesTemperatura.rojo.classList.remove('inactiva');
+                    lucesTemperatura.rojo.classList.add('activa');
+                    document.getElementById('temperaturaTexto').textContent = 'Temperatura Extrema';
+                    document.getElementById('temperaturaTexto').style.background = '#F44336';
+                    document.getElementById('temperaturaTexto').style.color = 'white';
+                }
             }
+            
             document.getElementById('temperaturaNivel').textContent = temperatura + '°C';
 
             // Semáforo de lluvia
@@ -532,29 +587,34 @@
                 amarillo: document.getElementById('luzAmarilloLluvia'),
                 rojo: document.getElementById('luzRojoLluvia')
             };
-            [lucesLluvia.verde, lucesLluvia.amarillo, lucesLluvia.rojo].forEach(luz => {
-                luz.classList.remove('activa', 'inactiva');
-                luz.classList.add('inactiva');
-            });
-            if (lluvia <= 30) {
-                lucesLluvia.verde.classList.remove('inactiva');
-                lucesLluvia.verde.classList.add('activa');
-                document.getElementById('lluviaTexto').textContent = 'Sin Lluvia';
-                document.getElementById('lluviaTexto').style.background = '#4CAF50';
-                document.getElementById('lluviaTexto').style.color = 'white';
-            } else if (lluvia <= 70) {
-                lucesLluvia.amarillo.classList.remove('inactiva');
-                lucesLluvia.amarillo.classList.add('activa');
-                document.getElementById('lluviaTexto').textContent = 'Lluvia Moderada';
-                document.getElementById('lluviaTexto').style.background = '#FFC107';
-                document.getElementById('lluviaTexto').style.color = 'white';
-            } else {
-                lucesLluvia.rojo.classList.remove('inactiva');
-                lucesLluvia.rojo.classList.add('activa');
-                document.getElementById('lluviaTexto').textContent = 'Lluvia Intensa';
-                document.getElementById('lluviaTexto').style.background = '#F44336';
-                document.getElementById('lluviaTexto').style.color = 'white';
+            
+            if (lucesLluvia.verde && lucesLluvia.amarillo && lucesLluvia.rojo) {
+                [lucesLluvia.verde, lucesLluvia.amarillo, lucesLluvia.rojo].forEach(luz => {
+                    luz.classList.remove('activa', 'inactiva');
+                    luz.classList.add('inactiva');
+                });
+                
+                if (lluvia <= 30) {
+                    lucesLluvia.verde.classList.remove('inactiva');
+                    lucesLluvia.verde.classList.add('activa');
+                    document.getElementById('lluviaTexto').textContent = 'Sin Lluvia';
+                    document.getElementById('lluviaTexto').style.background = '#4CAF50';
+                    document.getElementById('lluviaTexto').style.color = 'white';
+                } else if (lluvia <= 70) {
+                    lucesLluvia.amarillo.classList.remove('inactiva');
+                    lucesLluvia.amarillo.classList.add('activa');
+                    document.getElementById('lluviaTexto').textContent = 'Lluvia Moderada';
+                    document.getElementById('lluviaTexto').style.background = '#FFC107';
+                    document.getElementById('lluviaTexto').style.color = 'white';
+                } else {
+                    lucesLluvia.rojo.classList.remove('inactiva');
+                    lucesLluvia.rojo.classList.add('activa');
+                    document.getElementById('lluviaTexto').textContent = 'Lluvia Intensa';
+                    document.getElementById('lluviaTexto').style.background = '#F44336';
+                    document.getElementById('lluviaTexto').style.color = 'white';
+                }
             }
+            
             document.getElementById('lluviaNivel').textContent = lluvia + '%';
         }
 
@@ -566,107 +626,158 @@
             const climaVisual = document.getElementById('climaVisual');
 
             // Actualizar gota de humedad
-            gotaFill.style.height = humedad + '%';
-            humedadVisual.textContent = humedad + '%';
-            temperaturaVisual.textContent = temperatura + '°C';
+            if (gotaFill) {
+                gotaFill.style.height = humedad + '%';
+            }
+            if (humedadVisual) {
+                humedadVisual.textContent = humedad + '%';
+            }
+            if (temperaturaVisual) {
+                temperaturaVisual.textContent = temperatura + '°C';
+            }
 
             // Actualizar texto del clima basado en lluvia
-            if (lluvia > 70) {
-                climaVisual.textContent = 'Lluvia';
-            } else if (lluvia > 30) {
-                climaVisual.textContent = 'Nublado';
-            } else {
-                climaVisual.textContent = 'Soleado';
+            if (climaVisual) {
+                if (lluvia > 70) {
+                    climaVisual.textContent = 'Lluvia';
+                } else if (lluvia > 30) {
+                    climaVisual.textContent = 'Nublado';
+                } else {
+                    climaVisual.textContent = 'Soleado';
+                }
             }
         }
 
         // Función para actualizar tabla
         function actualizarTabla(humedad, temperatura, lluvia, viento) {
-            document.getElementById('humedadTabla').innerHTML = humedad + '<span class="tabla-unit">%</span>';
-            document.getElementById('temperaturaTabla').innerHTML = temperatura + '<span class="tabla-unit">°C</span>';
-            document.getElementById('lluviaTabla').innerHTML = lluvia + '<span class="tabla-unit">%</span>';
-            document.getElementById('vientoTabla').innerHTML = viento + '<span class="tabla-unit">km/h</span>';
+            const humedadTabla = document.getElementById('humedadTabla');
+            const temperaturaTabla = document.getElementById('temperaturaTabla');
+            const lluviaTabla = document.getElementById('lluviaTabla');
+            const vientoTabla = document.getElementById('vientoTabla');
+            
+            if (humedadTabla) humedadTabla.innerHTML = humedad + '<span class="tabla-unit">%</span>';
+            if (temperaturaTabla) temperaturaTabla.innerHTML = temperatura + '<span class="tabla-unit">°C</span>';
+            if (lluviaTabla) lluviaTabla.innerHTML = lluvia + '<span class="tabla-unit">%</span>';
+            if (vientoTabla) vientoTabla.innerHTML = viento + '<span class="tabla-unit">km/h</span>';
         }
 
         // Función para actualizar todo
         function actualizarTodo(humedadVal, temperaturaVal, lluviaVal, vientoVal) {
-            console.log("Actualizando interfaces:", {humedad: humedadVal, temperatura: temperaturaVal, lluvia: lluviaVal, viento: vientoVal});
+            console.log("🔄 Actualizando interfaces:", {
+                humedad: humedadVal, 
+                temperatura: temperaturaVal, 
+                lluvia: lluviaVal, 
+                viento: vientoVal
+            });
+            
             humedad = humedadVal;
             temperatura = temperaturaVal;
             lluvia = lluviaVal;
             viento = vientoVal;
+            
             actualizarSemaforo(humedad, temperatura, lluvia);
             actualizarElementosVisuales(humedad, temperatura, lluvia);
             actualizarTabla(humedad, temperatura, lluvia, viento);
         }
 
-        // Inicializar
+        // Configurar event listeners de manera segura
+        function configurarEventListeners() {
+            // Humedad
+            const luzVerdeHumedad = document.getElementById('luzVerdeHumedad');
+            const luzAmarilloHumedad = document.getElementById('luzAmarilloHumedad');
+            const luzRojoHumedad = document.getElementById('luzRojoHumedad');
+            
+            if (luzVerdeHumedad) {
+                luzVerdeHumedad.addEventListener('click', function() {
+                    llamarBridgeSetValues(75, temperatura, lluvia, viento);
+                });
+            }
+            if (luzAmarilloHumedad) {
+                luzAmarilloHumedad.addEventListener('click', function() {
+                    llamarBridgeSetValues(45, temperatura, lluvia, viento);
+                });
+            }
+            if (luzRojoHumedad) {
+                luzRojoHumedad.addEventListener('click', function() {
+                    llamarBridgeSetValues(15, temperatura, lluvia, viento);
+                });
+            }
+
+            // Temperatura
+            const luzVerdeTemperatura = document.getElementById('luzVerdeTemperatura');
+            const luzAmarilloTemperatura = document.getElementById('luzAmarilloTemperatura');
+            const luzRojoTemperatura = document.getElementById('luzRojoTemperatura');
+            
+            if (luzVerdeTemperatura) {
+                luzVerdeTemperatura.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, 25, lluvia, viento);
+                });
+            }
+            if (luzAmarilloTemperatura) {
+                luzAmarilloTemperatura.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, 18, lluvia, viento);
+                });
+            }
+            if (luzRojoTemperatura) {
+                luzRojoTemperatura.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, 10, lluvia, viento);
+                });
+            }
+
+            // Lluvia
+            const luzVerdeLluvia = document.getElementById('luzVerdeLluvia');
+            const luzAmarilloLluvia = document.getElementById('luzAmarilloLluvia');
+            const luzRojoLluvia = document.getElementById('luzRojoLluvia');
+            
+            if (luzVerdeLluvia) {
+                luzVerdeLluvia.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, temperatura, 20, viento);
+                });
+            }
+            if (luzAmarilloLluvia) {
+                luzAmarilloLluvia.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, temperatura, 50, viento);
+                });
+            }
+            if (luzRojoLluvia) {
+                luzRojoLluvia.addEventListener('click', function() {
+                    llamarBridgeSetValues(humedad, temperatura, 80, viento);
+                });
+            }
+
+            // Efecto de clic en la gota
+            const gota = document.querySelector('.gota');
+            if (gota) {
+                gota.addEventListener('click', function() {
+                    const nuevoValor = Math.floor(Math.random() * 100);
+                    llamarBridgeSetValues(nuevoValor, temperatura, lluvia, viento);
+                });
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM cargado, inicializando tarjetas");
+            console.log("🏠 DOM cargado, inicializando tarjetas");
+            
             // Mostrar la primera carta por defecto
             mostrarCarta("carta-semaforo");
+            
+            // Inicializar valores por defecto
             actualizarTodo(humedad, temperatura, lluvia, viento);
+            
+            // Configurar event listeners
+            configurarEventListeners();
+            
+            // Inicializar el bridge
+            inicializarBridge();
+            
+            console.log("🎯 Tarjetas inicializadas correctamente");
         });
 
-        // Efectos de clic para elementos interactivos
-        // Humedad
-        document.getElementById('luzVerdeHumedad').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(75, temperatura, lluvia, viento);
-            }
-        });
-        document.getElementById('luzAmarilloHumedad').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(45, temperatura, lluvia, viento);
-            }
-        });
-        document.getElementById('luzRojoHumedad').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(15, temperatura, lluvia, viento);
-            }
-        });
-
-        // Temperatura
-        document.getElementById('luzVerdeTemperatura').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, 25, lluvia, viento);
-            }
-        });
-        document.getElementById('luzAmarilloTemperatura').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, 18, lluvia, viento);
-            }
-        });
-        document.getElementById('luzRojoTemperatura').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, 10, lluvia, viento);
-            }
-        });
-
-        // Lluvia
-        document.getElementById('luzVerdeLluvia').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, temperatura, 20, viento);
-            }
-        });
-        document.getElementById('luzAmarilloLluvia').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, temperatura, 50, viento);
-            }
-        });
-        document.getElementById('luzRojoLluvia').addEventListener('click', function() {
-            if (bridge) {
-                bridge.setValues(humedad, temperatura, 80, viento);
-            }
-        });
-
-        // Efecto de clic en la gota
-        document.querySelector('.gota').addEventListener('click', function() {
-            const nuevoValor = Math.floor(Math.random() * 100);
-            if (bridge) {
-                bridge.setValues(nuevoValor, temperatura, lluvia, viento);
-            }
-        });
+        // Exportar funciones para acceso global (útil para debugging)
+        window.mostrarCarta = mostrarCarta;
+        window.actualizarTodo = actualizarTodo;
+        window.llamarBridgeSetValues = llamarBridgeSetValues;
     </script>
 </body>
-</html>
+</html> 
