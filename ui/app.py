@@ -541,10 +541,20 @@ class App(QMainWindow):
     def open_ver_reportes(self):
         """Ver reportes y resultados"""
         self.logger.info("Ver Reportes y Resultados")
-        self.showStyledMessage(
-            "📊 Visualización de Resultados", 
-            "Cargando dashboard interactivo con métricas y análisis históricos..."
-        )
+        try:
+            from ui.reportes_screen import ReportesMainWindow
+            
+            # Ocultar la ventana principal
+            self.hide()
+            
+            # Crear y mostrar la ventana del módulo de fragmentos
+            self.reportes_window = ReportesMainWindow(parent=self,logger=self.logger)
+            self.reportes_window.show()
+        except Exception as e:
+            self.logger.error(f"Error al abrir módulo de reportes: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de reportes: {e}")
+
+        
     
     def showStyledMessage(self, title, message):
         """Mostrar mensaje personalizado con estilo coherente"""
