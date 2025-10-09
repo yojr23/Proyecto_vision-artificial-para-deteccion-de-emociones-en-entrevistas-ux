@@ -1,0 +1,24 @@
+# Proyecto_vision-artificial-para-deteccion-de-emociones-en-entrevistas-ux
+# Requisitos de Python y librerías usadas en el proyecto
+# Indicar versión de Python (pyenv): 3.8.10
+# Puedes establecerla con:  pyenv local 3.8.10
+
+# Dependencias principales
+PySide6>=6.2,<7.0
+opencv-python>=4.5,<5.0
+numpy>=1.19,<1.26
+matplotlib>=3.3,<4.0
+fpdf2>=2.4
+
+# Audio / captura de audio (nota: en macOS puede requerir instalación de portaudio)
+PyAudio>=0.2.11
+
+# Dependencias opcionales (actívalas solo si las necesitas)
+# TensorFlow se usa condicionalmente en algunas partes del código para ML/analisis
+# Instálalo solo si realmente vas a usar esas funciones (puede ser pesado)
+# tensorflow>=2.6,<3.0
+
+# Herramientas de desarrollo (opcional)
+# black
+# flake8
+# pytest
