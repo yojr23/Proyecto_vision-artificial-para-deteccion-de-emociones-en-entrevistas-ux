@@ -88,7 +88,7 @@ class ReportesMainWindow(QMainWindow):
                 "videos": []  # Full videos de entrevistas
             }
             marcas_path = Path("data/marcas")  # JSONs como marcas_2025-10-05_005.json
-            puntajes_path = Path("data/puntajes")  # JSONs como puntajes_2025-10-05_005.json con {"pregunta_1": {...}, ...}
+            puntajes_path = Path("data/resultados")  # JSONs como puntajes_2025-10-05_005.json con {"pregunta_1": {...}, ...}
             videos_path = Path("data/videos_originales")
 
             # 🔹 Recorrer archivos de marcas para obtener entrevistas y comentarios/notas
@@ -176,7 +176,7 @@ class ReportesMainWindow(QMainWindow):
     def _check_directories(self):
         self.Videos_path = Path("data/videos_originales")
         self.Marcas_path = Path("data/marcas")
-        self.Puntajes_path = Path("data/puntajes")
+        self.Puntajes_path = Path("data/resultados")
 
         for path in [self.Videos_path, self.Marcas_path, self.Puntajes_path]:
             if not path.is_dir():

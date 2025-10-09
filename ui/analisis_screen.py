@@ -406,9 +406,9 @@ class AnalisisMainWindow(QMainWindow):
         btn_analizar.setStyleSheet(primary_button_style)
 
         # Conectar botones (stub - implementar según necesidades)
-        btn_selector.clicked.connect(self.mostrar_selector)
-        btn_analizar.clicked.connect(self.analizar_emociones)
-        btn_reportes.clicked.connect(self.generar_reportes)
+        btn_selector.clicked.connect(lambda: self.stack.setCurrentWidget(self.info_screen))
+        btn_analizar.clicked.connect(lambda: self.stack.setCurrentWidget(self.generar_screen))
+        btn_reportes.clicked.connect(lambda: self.stack.setCurrentWidget(self.reporte_sencillo_screen))
         btn_volver.clicked.connect(self.volver_menu_principal)
 
         # Agregar botones al layout
@@ -416,6 +416,8 @@ class AnalisisMainWindow(QMainWindow):
             menu_layout.addWidget(btn)
 
         return menu_frame
+
+   
 
     # ------------------------------------------------------------------
     # 🔹 MÉTODOS DE BOTONES (STUB - IMPLEMENTAR SEGÚN NECESIDADES)
@@ -431,7 +433,7 @@ class AnalisisMainWindow(QMainWindow):
     def generar_reportes(self):
         """Generar reportes de análisis"""
         self.show_info("Funcionalidad de generación de reportes")
-
+    
     # ------------------------------------------------------------------
     # 🔹 UTILIDADES
     # ------------------------------------------------------------------
