@@ -357,14 +357,18 @@ class InterviewScreen(QWidget):
             return
         self.pregunta_idx += 1
         self.current_pregunta_id += 1
-        cat = self.categorias[self.categoria_idx]
-        preguntas_cat = self.preguntas.obtener_preguntas(cat)
+        # Obtener preguntas de la categoría actual y ajustar índices si es necesario
+        preguntas_cat = self.preguntas.obtener_preguntas(self.categorias[self.categoria_idx])
         if self.pregunta_idx >= len(preguntas_cat):
             self.categoria_idx += 1
             self.pregunta_idx = 0
             if self.categoria_idx >= len(self.categorias):
                 self.categoria_idx = len(self.categorias) - 1
+                # asegurar que pregunta_idx esté en rango
+                preguntas_cat = self.preguntas.obtener_preguntas(self.categorias[self.categoria_idx])
                 self.pregunta_idx = len(preguntas_cat)
+        # Determinar la categoría actual después de los ajustes
+        cat = self.categorias[self.categoria_idx]
         self.actualizar_pregunta()
         print("se prepara el envio")
         self.bridge.setPregunta(cat, self.pregunta_idx)

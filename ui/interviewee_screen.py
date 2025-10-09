@@ -1,7 +1,7 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QTabWidget, QMessageBox,
-    QHBoxLayout, QFrame, QProgressBar
+    QHBoxLayout, QFrame, QProgressBar, QScrollArea
 )
 from PySide6.QtCore import QTimer, QObject, Signal, Slot, QUrl, Qt
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont
 from pathlib import Path
 
 from functools import partial
+import unicodedata
 
 from classes.entrevista_preguntas import EntrevistaPreguntas
 
@@ -73,6 +74,14 @@ class DataBridge(QObject):
 class IntervieweeScreen(QWidget):
     VISUAL_CATEGORIES = ["Semaforo", "Pictogramas", "Tabla"]
 
+    def _normalize(self, s: str) -> str:
+        """Normaliza strings: quita acentos y pasa a minúsculas."""
+        if not isinstance(s, str):
+            return ""
+        s_norm = unicodedata.normalize('NFKD', s)
+        s_norm = ''.join(ch for ch in s_norm if not unicodedata.combining(ch))
+        return s_norm.lower()
+
     def __init__(self, bridge: DataBridge):
         super().__init__()
         self.setWindowTitle("🌱 Entrevista UX - Pantalla Entrevistado")
@@ -103,9 +112,23 @@ class IntervieweeScreen(QWidget):
         self.total_preguntas = sum(len(self.preguntas.obtener_preguntas(c)) for c in self.categorias)
         self.preguntas_completadas = 0
 
-        self.layout = QVBoxLayout(self)
+        # Hacer la ventana scrollable: crear un QScrollArea y un widget contenedor
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        self.scroll = QScrollArea(self)
+        self.scroll.setWidgetResizable(True)
+        self.scroll_widget = QWidget()
+        self.scroll.setWidget(self.scroll_widget)
+
+        # Layout principal del contenido (usar self.layout por compatibilidad con el resto del código)
+        self.layout = QVBoxLayout(self.scroll_widget)
         self.layout.setSpacing(15)
         self.layout.setContentsMargins(25, 25, 25, 25)
+
+        # Añadir el scroll area al layout principal de la ventana
+        main_layout.addWidget(self.scroll)
 
         # Conectar señales
         self.bridge.updateData.connect(self.on_update_data)
@@ -273,6 +296,9 @@ class IntervieweeScreen(QWidget):
     def actualizar_pregunta(self):
         """Actualiza el texto de la pregunta y muestra/oculta tabs según categoría"""
         cat = self.categorias[self.categoria_idx]
+        # Normalizar categoría para comparaciones (minusculas y sin acentos)
+        visual_norms = [self._normalize(v) for v in self.VISUAL_CATEGORIES]
+        cat_norm = self._normalize(cat)
         preguntas_cat = self.preguntas.obtener_preguntas(cat)
         
         # Calcular progreso
@@ -300,16 +326,15 @@ class IntervieweeScreen(QWidget):
             return
 
         # Mostrar tabs solo para categorías visuales - CORREGIDO
-        if cat in self.VISUAL_CATEGORIES:
+        if cat_norm in visual_norms:
             self.tabs.show()
             self.tabs_title.show()
-            
-            idx = self.VISUAL_CATEGORIES.index(cat)
+            idx = visual_norms.index(cat_norm)
             self.tabs.setCurrentIndex(idx)
             self.current_carta_id = self.carta_ids[idx]
-            
+
             print(f"🎨 Mostrando tab visual: {self.tab_names[idx]} para categoría: {cat}")
-            
+
             # Mostrar la carta correspondiente
             if self.webviews_loaded.get(idx, False):
                 self.mostrar_carta_simple(idx, self.carta_ids[idx])
@@ -326,10 +351,15 @@ class IntervieweeScreen(QWidget):
     def actualizar_desde_bridge(self, categoria, pregunta_idx):
         """Actualiza la pregunta y tabs según la señal del entrevistador"""
         print(f"🔄 Actualizando desde bridge: {categoria}, índice: {pregunta_idx}")
-        if categoria in self.categorias:
-            self.categoria_idx = self.categorias.index(categoria)
-            self.pregunta_idx = pregunta_idx
-            self.actualizar_pregunta()
+        # Buscar la categoría de forma normalizada
+        cat_norm = self._normalize(categoria)
+        for i, c in enumerate(self.categorias):
+            if self._normalize(c) == cat_norm:
+                self.categoria_idx = i
+                self.pregunta_idx = pregunta_idx
+                self.actualizar_pregunta()
+                return
+        print(f"[WARN] Categoria recibida desde bridge no encontrada tras normalizar: {categoria}")
 
     def crear_header(self):
         """Crear encabezado con diseño agrícola"""
