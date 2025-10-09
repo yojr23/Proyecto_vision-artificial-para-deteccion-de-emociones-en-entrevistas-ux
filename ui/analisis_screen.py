@@ -212,7 +212,7 @@ class AnalisisMainWindow(QMainWindow):
         
         # Agregar subpantallas
         # Agregar subpantallas al stack
-        self.load_fragmento_data()
+        self.load_reportes_data()
         self.info_screen = AnalisisInfoScreen(logger=self.logger, data_context=self.data_context, parent=self)
         self.generar_screen = AnalisisGenerarScreen(logger=self.logger, data_context=self.data_context,parent=self)
         self.reporte_sencillo_screen = AnalisisReporteScreen(logger=self.logger, data_context=self.data_context,parent=self)
