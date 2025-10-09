@@ -516,10 +516,6 @@ class App(QMainWindow):
     def open_config(self):
         """Abrir configuración del sistema"""
         self.logger.info("Navegando a configuración del Sistema")
-        self.showStyledMessage(
-            "⚡ Configuración del Sistema", 
-            "Accediendo al panel de configuración avanzada de AGRIOT..."
-        )
         try:
             from ui.config_screen import ConfigMainWindow
             
