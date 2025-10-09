@@ -32,7 +32,7 @@ class ReporteEntrevista:
         }
         return self.resumen
 
-    def exportar_json(self, ruta: str | Path):
+    def exportar_json(self, ruta):  # Eliminar la anotación de tipo temporalmente
         data = {
             "resumen": self.resumen,
             "preguntas": self.preguntas

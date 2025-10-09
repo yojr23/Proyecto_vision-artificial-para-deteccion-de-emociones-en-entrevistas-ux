@@ -121,14 +121,18 @@ class FragmentoMainWindow(QMainWindow):
     # 🔹 Verificar carpetas
     # ------------------------------------------------------------------
     def _check_directories(self):
-        self.Originales_path = Path("data/videos_originales")
-        self.Marcas_path = Path("data/marcas")
+        """Verifica que existan las carpetas necesarias para el módulo de análisis"""
+        self.Entrevistas_path = Path("data/entrevistas")
+        self.Reportes_path = Path("data/reportes")
         self.Fragmentos_path = Path("data/fragmentos")
+        self.Marcas_path = Path("data/marcas")  # Nueva carpeta para marcas
 
-        for path in [self.Originales_path, self.Marcas_path, self.Fragmentos_path]:
+        for path in [self.Entrevistas_path, self.Reportes_path, self.Fragmentos_path, self.Marcas_path]:
             if not path.is_dir():
-                raise ValueError(f"El directorio {path} no existe o no es válido")
-
+                path.mkdir(parents=True, exist_ok=True)
+                self.logger.warning(f"Directorio creado: {path}")
+        
+    
     # ------------------------------------------------------------------
     # 🔹 Construcción de la interfaz
     # ------------------------------------------------------------------

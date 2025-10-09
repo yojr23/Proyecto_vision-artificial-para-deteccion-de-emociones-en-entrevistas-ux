@@ -24,7 +24,7 @@ def setup_logging(debug: bool = False) -> None:
     logging.info(f"Logging inicializado (nivel={logging.getLevelName(log_level)})")
     logging.info(f"Archivo de log: {log_file}")
 
-def ensure_directories(salida_dir: Path | str) -> None:
+def ensure_directories(salida_dir) -> None:
     """Crea los directorios base requeridos para la aplicación."""
     base_path = Path(salida_dir)
     directories = [

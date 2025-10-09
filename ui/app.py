@@ -401,7 +401,7 @@ class App(QMainWindow):
             icon_text="📈"
         )
         btn_analisis.setFixedSize(220, 60)
-        btn_analisis.clicked.connect(self.open_reporte)
+        btn_analisis.clicked.connect(self.open_analisis)
         buttons_grid.addWidget(btn_analisis, alignment=Qt.AlignmentFlag.AlignTop)
 
         # Botón: Ver Resultados
@@ -530,13 +530,22 @@ class App(QMainWindow):
             QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de configuracion: {e}")
 
     
-    def open_reporte(self):
+    def open_analisis(self):
         """Generar análisis y reportes"""
         self.logger.info("Generando Análisis")
-        self.showStyledMessage(
-            "📈 Generando Análisis Completo", 
-            "Procesando datos emocionales y generando reportes visuales interactivos..."
-        )
+        try:
+            from ui.analisis_screen import AnalisisMainWindow
+            
+            # Ocultar la ventana principal
+            self.hide()
+            
+            # Crear y mostrar la ventana del módulo de fragmentos
+            self.analisis_window = AnalisisMainWindow(parent=self,logger=self.logger)
+            self.analisis_window.show()
+        except Exception as e:
+            self.logger.error(f"Error al abrir módulo de analisis: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de analisis: {e}")
+
     
     def open_ver_reportes(self):
         """Ver reportes y resultados"""
