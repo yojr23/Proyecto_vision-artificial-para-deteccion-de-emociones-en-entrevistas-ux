@@ -188,9 +188,7 @@ class InfoCard(QFrame):
     def getInfoText(self):
         """Obtener texto de información"""
         return """
-        <b>AGRIOT</b> es el semillero de investigación más innovador en experiencia de usuario agrícola. 
-        Utilizamos inteligencia artificial de vanguardia para detectar emociones durante las interacciones 
-        con tecnologías digitales, creando soluciones verdaderamente inclusivas.
+        <b>AGRIOT</b> AGRIOT es un semillero que busca emplear tecnologías 4.0 y 5.0 para el desarrollo y evaluación de tecnologías agrícolas para el uso de campesinos agrícolas de pequeña escala
         
         <br><br><b>🎯 Características Principales:</b>
         <br>• Detección automática de emociones en tiempo real
@@ -199,9 +197,10 @@ class InfoCard(QFrame):
         <br>• Metodología centrada en el empoderamiento femenino
         
         <br><br><b>🌍 Impacto Social:</b>
-        <br>Enfocado en la vereda Mancilla, Los Santos, Santander, como parte del proyecto 
-        <i>"Sembrando Bits: Empoderando a la mujer agricultora"</i>, transformando vidas 
-        a través de la tecnología accesible.
+        <br>Hemos desarrollado estudios en Simacota y en Los Santos, ambos municipios de Santander. 
+        Actualmente, somos parte del equipo logístico del proyecto SembrandoBits, financiado por la convocatoria 948:
+        Mujeres por la ciencia, financiado por MINCIENCIAS el cual tiene el propósito de empoderar a la mujer campesina
+        de las veredas Los Teres, Paso Chico y la Laguna, perteneciente al municipio de Los Santos
         """
         
     def getInfoStyle(self):

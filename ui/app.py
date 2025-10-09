@@ -4,10 +4,11 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QSpacerItem, QSizePolicy, QMessageBox, QInputDialog
+    QSpacerItem, QSizePolicy, QMessageBox, QInputDialog, QPushButton, QFileDialog,
+
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap, QFont
+from PySide6.QtGui import QPixmap, QFont, QCursor
 
 # Importar componentes modulares
 from .utils.animations import AnimatedLabel, TitleAnimator
@@ -20,6 +21,10 @@ from .utils.styles import (
 )
 from ui.interview_screen import InterviewScreen
 from ui.fragmento_screen import FragmentoMainWindow
+
+from .informacion_adicional.deteccion_screen import DeteccionScreen
+from .informacion_adicional.ux_agricola_screen import UXAgricolaScreen
+from .informacion_adicional.transformacion_screen import TransformacionScreen
 
 class App(QMainWindow):
     """Aplicación principal AGRIOT con arquitectura modular"""
@@ -101,10 +106,6 @@ class App(QMainWindow):
 
         parent_layout.addWidget(header_frame)
         
-    def createHeaderFrame(self):
-        """(Obsoleto)"""
-        return QWidget()
-        
     def createSubtitle(self):
         """Crear subtítulo con estilo"""
         subtitle = QLabel("🌱 Semillero de Innovación • Experiencia de Usuario Agrícola • Empoderamiento Digital 🌾")
@@ -127,7 +128,7 @@ class App(QMainWindow):
         return subtitle
         
     def buildFeatureSection(self, parent_layout):
-        """Construir sección de características con cards estáticas y animación de icono"""
+        """Construir sección de características con cards estáticas y iconos clickeables"""
         from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QPoint
         features_frame = QWidget()
         features_layout = QHBoxLayout(features_frame)
@@ -137,9 +138,9 @@ class App(QMainWindow):
 
         # Datos estáticos de las cartas
         static_cards = [
-            {"icon": "🤖", "title": "Detección Emocional IA", "desc": "Análisis avanzado de expresiones faciales para evaluar la experiencia del usuario en tiempo real"},
-            {"icon": "📊", "title": "UX Agrícola Inclusiva", "desc": "Herramientas especializadas para medir usabilidad en entornos rurales y campesinos"},
-            {"icon": "🚀", "title": "Transformación Digital", "desc": "Empoderando a mujeres campesinas mediante tecnología accesible e intuitiva"},
+            {"icon": "🤖", "title": "Detección Emocional IA", "desc": "Análisis avanzado de expresiones faciales para evaluar la experiencia del usuario en tiempo real", "screen": "deteccion"},
+            {"icon": "📊", "title": "UX Agrícola Inclusiva", "desc": "Herramientas especializadas para medir usabilidad en entornos rurales y campesinos", "screen": "ux_agricola"},
+            {"icon": "🚀", "title": "Transformación Digital", "desc": "Empoderando a mujeres campesinas mediante tecnología accesible e intuitiva", "screen": "transformacion"},
         ]
 
         for card in static_cards:
@@ -150,21 +151,39 @@ class App(QMainWindow):
             card_layout.setSpacing(12)
             card_layout.setContentsMargins(24, 18, 24, 18)
 
-            # Icono animado
-            icon_label = QLabel(card["icon"])
-            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon_label.setStyleSheet(f"""
-                font-size: 54px;
-                color: {ColorPalette.DEEP_GREEN if hasattr(ColorPalette, 'DEEP_GREEN') else '#1a3d1a'};
-                background: transparent;
-                border-radius: 18px;
-                transition: all 0.2s;
-                padding: 0px;
+            # Icono clickeable (botón)
+            icon_button = QPushButton(card["icon"])
+            icon_button.setCursor(QCursor(Qt.PointingHandCursor))
+            icon_button.setFixedSize(80, 80)
+            icon_button.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 54px;
+                    color: {ColorPalette.DEEP_GREEN if hasattr(ColorPalette, 'DEEP_GREEN') else '#1a3d1a'};
+                    background: transparent;
+                    border-radius: 40px;
+                    border: 2px solid transparent;
+                    padding: 0px;
+                }}
+                QPushButton:hover {{
+                    background: rgba(50, 205, 50, 0.1);
+                    border: 2px solid rgba(50, 205, 50, 0.3);
+                    transform: scale(1.05);
+                }}
+                QPushButton:pressed {{
+                    background: rgba(50, 205, 50, 0.2);
+                    border: 2px solid rgba(50, 205, 50, 0.5);
+                }}
             """)
-            icon_label.setFixedHeight(64)
+            
+            # Conectar el botón a la función correspondiente
+            if card["screen"] == "deteccion":
+                icon_button.clicked.connect(self.open_deteccion)
+            elif card["screen"] == "ux_agricola":
+                icon_button.clicked.connect(self.open_ux_agricola)
+            elif card["screen"] == "transformacion":
+                icon_button.clicked.connect(self.open_transformacion)
 
-
-            card_layout.addWidget(icon_label)
+            card_layout.addWidget(icon_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
             # Título limpio
             title_label = QLabel(card["title"])
@@ -256,7 +275,7 @@ class App(QMainWindow):
         """Crear imagen de mascota o placeholder"""
         import os
         mascot_image = AnimatedLabel()
-        img_path = "img/mascota_agriot.png"
+        img_path = "img/semillin.png"
         pixmap = QPixmap(img_path)
         if not os.path.exists(img_path) or pixmap.isNull():
             mascot_image.setText("⚠️\nSin imagen\nAGRIOT")
@@ -430,6 +449,39 @@ class App(QMainWindow):
         except Exception as e:
             self.logger.error(f"Error al abrir módulo de fragmentos: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de fragmentos: {e}")
+
+    def open_deteccion(self):
+        """Abrir pantalla de Detección Emocional IA"""
+        self.logger.info("Navegando a pantalla de Detección Emocional IA")
+        try:
+            self.deteccion_window = DeteccionScreen(parent=self)
+            self.deteccion_window.show()
+            self.hide()
+        except Exception as e:
+            self.logger.error(f"Error al abrir pantalla de detección: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir la pantalla: {str(e)}")
+
+    def open_ux_agricola(self):
+        """Abrir pantalla de UX Agrícola Inclusiva"""
+        self.logger.info("Navegando a pantalla de UX Agrícola Inclusiva")
+        try:
+            self.ux_agricola_window = UXAgricolaScreen(parent=self)
+            self.ux_agricola_window.show()
+            self.hide()
+        except Exception as e:
+            self.logger.error(f"Error al abrir pantalla de UX Agrícola: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir la pantalla: {str(e)}")
+
+    def open_transformacion(self):
+        """Abrir pantalla de Transformación Digital"""
+        self.logger.info("Navegando a pantalla de Transformación Digital")
+        try:
+            self.transformacion_window = TransformacionScreen(parent=self)
+            self.transformacion_window.show()
+            self.hide()
+        except Exception as e:
+            self.logger.error(f"Error al abrir pantalla de transformación: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir la pantalla: {str(e)}")
 
                    
     def buildFooter(self, parent_layout):
