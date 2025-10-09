@@ -141,6 +141,8 @@ class AnalisisGenerarScreen(QWidget):
         self.setup_ui()
         self.cargar_modelos()
         self.cargar_entrevistas()
+        # Verificar estructura de directorios
+        self.verificar_estructura_directorios()
         
     def cargar_modelos(self):
         """Cargar modelos disponibles desde la carpeta ml/"""
@@ -403,6 +405,8 @@ class AnalisisGenerarScreen(QWidget):
         self.stats_label.setWordWrap(True)
         stats_layout.addWidget(self.stats_label)
         layout.addWidget(stats_frame)
+        
+        buttons_layout = QHBoxLayout()
 
         # Botón generar análisis
         self.btn_analizar = QPushButton("🧠 Generar Análisis de Emociones")
@@ -425,9 +429,8 @@ class AnalisisGenerarScreen(QWidget):
                     stop:0 #5cb860, stop:1 #4caf50);
             }
         """)
-        layout.addWidget(self.btn_analizar)
-        layout.addStretch()
-        
+
+        #boton cancelar 
         self.btn_cancelar = QPushButton("❌ Cancelar Análisis")
         self.btn_cancelar.setEnabled(False)
         self.btn_cancelar.clicked.connect(self.cancelar_analisis)
@@ -439,6 +442,13 @@ class AnalisisGenerarScreen(QWidget):
             QPushButton:disabled { background: #9e9e9e; color: #cccccc; }
             QPushButton:hover:enabled { background: #d32f2f; }
         """)
+        
+        buttons_layout.addWidget(self.btn_analizar)
+        buttons_layout.addWidget(self.btn_cancelar)
+        buttons_layout.addStretch()
+        
+        layout.addLayout(buttons_layout)
+        layout.addStretch()
         return frame
 
     # ------------------------------------------------------------------
@@ -637,28 +647,44 @@ class AnalisisGenerarScreen(QWidget):
 
     def actualizar_tabla_fragmentos(self):
         """Actualizar la tabla con los fragmentos cargados y agregar checkboxes"""
+        # Configurar columnas para incluir checkbox
+        self.fragmentos_table.setColumnCount(5)
+        self.fragmentos_table.setHorizontalHeaderLabels([
+            "✅", "🎬 Fragmento", "⏱️ Duración", "📊 Tamaño", "📅 Creación"
+        ])
+        
+        # Configurar headers
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Checkbox
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)  # Nombre
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Duración
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Tamaño
+        self.fragmentos_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Fecha
+        
         self.fragmentos_table.setRowCount(len(self.fragmentos_data))
         
         for row, frag in enumerate(self.fragmentos_data):
-            # Checkbox
-            checkbox_item = QTableWidgetItem(frag['name'])
-            checkbox_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-            checkbox_item.setCheckState(Qt.Checked)  # Por defecto todos seleccionados
-            checkbox_item.setData(Qt.UserRole, row)
+            # Checkbox (columna 0)
+            checkbox_item = QTableWidgetItem()
+            checkbox_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            checkbox_item.setCheckState(Qt.Checked)  # Por defecto seleccionado
             self.fragmentos_table.setItem(row, 0, checkbox_item)
             
-            # Duración
+            # Nombre del fragmento (columna 1)
+            name_item = QTableWidgetItem(frag['name'])
+            name_item.setData(Qt.UserRole, row)
+            self.fragmentos_table.setItem(row, 1, name_item)
+            
+            # Duración (columna 2)
             duration_item = QTableWidgetItem(frag['duration'])
-            self.fragmentos_table.setItem(row, 1, duration_item)
+            self.fragmentos_table.setItem(row, 2, duration_item)
             
-            # Tamaño
+            # Tamaño (columna 3)
             size_item = QTableWidgetItem(self.formatear_tamaño_archivo(frag['size']))
-            self.fragmentos_table.setItem(row, 2, size_item)
+            self.fragmentos_table.setItem(row, 3, size_item)
             
-            # Fecha de creación
+            # Fecha de creación (columna 4)
             date_item = QTableWidgetItem(frag['creation_time'].strftime("%Y-%m-%d %H:%M"))
-            self.fragmentos_table.setItem(row, 3, date_item)
-
+            self.fragmentos_table.setItem(row, 4, date_item)
 
     def actualizar_estadisticas(self):
         """Actualizar las estadísticas de la entrevista seleccionada"""
@@ -688,6 +714,18 @@ class AnalisisGenerarScreen(QWidget):
         
         self.stats_label.setText(stats_text)
 
+    def verificar_estructura_directorios(self):
+        """Verificar que la estructura de directorios necesaria existe"""
+        directorios_necesarios = [
+            Path("data/resultados"),
+            Path("ml")
+        ]
+        
+        for directorio in directorios_necesarios:
+            if not directorio.exists():
+                directorio.mkdir(parents=True, exist_ok=True)
+                self.logger.info(f"Directorio creado: {directorio}")
+                
     def actualizar_boton_analizar(self):
         """Actualizar estado del botón de análisis"""
         tiene_fragmentos = len(self.fragmentos_data) > 0
@@ -715,11 +753,17 @@ class AnalisisGenerarScreen(QWidget):
 
 
     def get_fragmentos_seleccionados(self):
+        """Obtener lista de fragmentos seleccionados por el usuario"""
         selected = []
         for row in range(self.fragmentos_table.rowCount()):
-            item = self.fragmentos_table.item(row, 0)
-            if item.checkState() == Qt.Checked:
-                selected.append(self.fragmentos_data[item.data(Qt.UserRole)])
+            checkbox_item = self.fragmentos_table.item(row, 0)  # Columna del checkbox
+            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+                # Obtener el índice del fragmento desde la columna del nombre
+                name_item = self.fragmentos_table.item(row, 1)
+                if name_item:
+                    frag_index = name_item.data(Qt.UserRole)
+                    if frag_index is not None and 0 <= frag_index < len(self.fragmentos_data):
+                        selected.append(self.fragmentos_data[frag_index])
         return selected
 
     # ------------------------------------------------------------------

@@ -22,6 +22,8 @@ from .utils.styles import (
 from ui.interview_screen import InterviewScreen
 from ui.fragmento_screen import FragmentoMainWindow
 
+from ui.interviewee_screen import IntervieweeScreen, DataBridge
+
 from .informacion_adicional.deteccion_screen import DeteccionScreen
 from .informacion_adicional.ux_agricola_screen import UXAgricolaScreen
 from .informacion_adicional.transformacion_screen import TransformacionScreen

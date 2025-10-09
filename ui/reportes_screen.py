@@ -17,10 +17,9 @@ from .utils.styles import (
     MessageBoxStyles, LayoutSettings, FontSettings
 )
 
-# Asumimos que crearás estas pantallas en reportes_screens/
-# from .reportes_screens.resumen_screen import ResumenScreen
-# from .reportes_screens.detalle_screen import DetalleScreen
-# from .reportes_screens.export_screen import ExportScreen
+from .reportes_screens.resumen_screen import ResumenScreen
+from .reportes_screens.detalle_screen import DetalleScreen
+from .reportes_screens.export_screen import ExportScreen
 
 # 🔹 Definir paleta de colores verde agrícola completa
 AGRICULTURAL_GREEN_PALETTE = {
@@ -73,102 +72,151 @@ class ReportesMainWindow(QMainWindow):
         self.load_reportes_data()  # Cargar al init
         self.populate_entrevista_selector()  # Poblar después de cargar datos
 
-    def populate_entrevista_selector(self):
-        """Poblar el selector de entrevistas con datos ordenados."""
-        self.entrevista_selector.clear()  # Limpiar si hay items previos
-        for ent in self.data_context.get("entrevistas", []):
-            self.entrevista_selector.addItem(ent["nombre"])
+    
 
     def load_reportes_data(self):
-        """Cargar datos globales de entrevistas, puntajes emocionales y marcas (comentarios/notas)."""
+        """Cargar datos globales de entrevistas desde los fragmentos analizados - MEJORADO"""
         try:
             data = {
-                "entrevistas": [],  # Lista de dicts con info general por entrevista
-                "por_entrevista": {},  # {id_entrevista: {pregunta_id: {emociones, intensidad, nota, inicio, fin, video_full}, ...}}
-                "videos": []  # Full videos de entrevistas
+                "entrevistas": [],
+                "por_entrevista": {},
+                "videos": []
             }
-            marcas_path = Path("data/marcas")  # JSONs como marcas_2025-10-05_005.json
-            puntajes_path = Path("data/resultados")  # JSONs como puntajes_2025-10-05_005.json con {"pregunta_1": {...}, ...}
-            videos_path = Path("data/videos_originales")
-
-            # 🔹 Recorrer archivos de marcas para obtener entrevistas y comentarios/notas
-            for marcas_file in marcas_path.glob("marcas_*.json"):
-                entrevista_id = marcas_file.stem.replace("marcas_", "")
-                with open(marcas_file, "r", encoding="utf-8") as f:
-                    marcas_data = json.load(f)
-
-                # Cargar puntajes correspondientes para emociones
-                puntajes_file = puntajes_path / f"puntajes_{entrevista_id}.json"
-                if not puntajes_file.exists():
-                    self.logger.warning(f"No se encontró puntajes para {entrevista_id}")
+            
+            resultados_path = Path("data/resultados")
+            
+            # Buscar todas las carpetas de entrevistas en data/resultados
+            for entrevista_dir in resultados_path.iterdir():
+                if not entrevista_dir.is_dir():
                     continue
-                with open(puntajes_file, "r", encoding="utf-8") as pf:
-                    emociones_data = json.load(pf)  # {"pregunta_1": {"emociones_detectadas": [...], "intensidad": {...}}, ...}
-
+                    
+                entrevista_id = entrevista_dir.name
+                self.logger.info(f"Procesando entrevista: {entrevista_id}")
+                
+                # Buscar todos los JSONs de fragmentos en esta carpeta
+                fragmentos_data = {}
+                for json_file in entrevista_dir.glob("*.json"):
+                    try:
+                        with open(json_file, "r", encoding="utf-8") as f:
+                            fragmento_data = json.load(f)
+                        
+                        # Extraer información del fragmento - MEJORADO
+                        fragmento_info = fragmento_data.get("fragmento", {})
+                        analisis_info = fragmento_data.get("analisis", {})
+                        
+                        # MEJORADO: Extraer pregunta_id de diferentes formas posibles
+                        pregunta_id = fragmento_info.get("pregunta_id")
+                        if not pregunta_id:
+                            # Intentar extraer del nombre del archivo
+                            filename = json_file.stem
+                            if "pregunta" in filename.lower():
+                                # Buscar números después de "pregunta"
+                                import re
+                                match = re.search(r'pregunta[_\s]*(\d+)', filename.lower())
+                                if match:
+                                    pregunta_id = match.group(1)
+                        
+                        if not pregunta_id:
+                            self.logger.warning(f"No se pudo extraer pregunta_id de {json_file}")
+                            continue
+                        
+                        # MEJORADO: Asegurar que pregunta_id es string consistente
+                        pregunta_id = str(pregunta_id).zfill(3)  # Formato 001, 002, etc.
+                        
+                        # Guardar datos del análisis emocional
+                        fragmentos_data[pregunta_id] = {
+                            "intensidad": analisis_info.get("resumen_emociones", {}).get("avg_intensities", {}),
+                            "emocion_dominante": analisis_info.get("resumen_emociones", {}).get("dominant_emotion", ""),
+                            "confidence": analisis_info.get("resumen_emociones", {}).get("confidence", 0),
+                            "total_frames": analisis_info.get("total_frames_analizados", 0),
+                            "fecha_analisis": analisis_info.get("fecha_analisis", ""),
+                            "nota": f"Fragmento {pregunta_id}",
+                            "video_fragmento": fragmento_info.get("ruta", ""),
+                            "nombre_fragmento": fragmento_info.get("nombre", "")
+                        }
+                        
+                        self.logger.info(f"  - Pregunta {pregunta_id} cargada: {fragmentos_data[pregunta_id]['emocion_dominante']}")
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Error cargando {json_file}: {str(e)}")
+                        continue
+                
+                if not fragmentos_data:
+                    self.logger.warning(f"No se encontraron fragmentos válidos para {entrevista_id}")
+                    continue
+                
                 # Info general de la entrevista
-                marcas_list = marcas_data.get("marcas", [])
                 info = {
                     "id": entrevista_id,
                     "nombre": f"Entrevista {entrevista_id}",
-                    "num_preguntas": len(marcas_list),
-                    "promedios_globales": self._calcular_promedios_globales(emociones_data),  # Función helper
-                    "fecha": datetime.fromtimestamp(marcas_file.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
-                    "video_full": marcas_data.get("archivo_video", "")
+                    "num_preguntas": len(fragmentos_data),
+                    "promedios_globales": self._calcular_promedios_globales(fragmentos_data),
+                    "fecha": self._obtener_fecha_entrevista(entrevista_dir),
+                    "video_full": ""
                 }
                 data["entrevistas"].append(info)
+                data["por_entrevista"][entrevista_id] = fragmentos_data
 
-                # Detalle por pregunta (usando pregunta_id como key, ej: 1 -> "pregunta_1")
-                por_pregunta = {}
-                for marca in marcas_list:
-                    pregunta_id = marca["pregunta_id"]
-                    pregunta_key = f"pregunta_{pregunta_id}"  # Asumir key en puntajes como "pregunta_1"
-                    info_preg = emociones_data.get(pregunta_key, {})
-                    
-                    por_pregunta[str(pregunta_id)] = {  # Key como str(pregunta_id) para consistencia
-                        "emociones_detectadas": info_preg.get("emociones_detectadas", []),
-                        "intensidad": info_preg.get("intensidad", {}),
-                        "nota": marca.get("nota", ""),  # Comentario del entrevistador
-                        "inicio": marca.get("inicio", 0),
-                        "fin": marca.get("fin", 0),
-                        "video_full": info["video_full"]  # Full video path, player seekeará a inicio/fin
-                    }
-                data["por_entrevista"][entrevista_id] = por_pregunta
-
-            # Cargar videos full (ya referenciados en marcas, pero para lista general)
-            for video_file in videos_path.glob("*.mp4"):
-                info = {
-                    "nombre": video_file.name,
-                    "ruta": str(video_file),
-                    "tamano": video_file.stat().st_size,
-                    "fecha": datetime.fromtimestamp(video_file.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
-                }
-                data["videos"].append(info)
-
-            # Ordenar entrevistas de la más nueva a la más antigua por fecha
-            data["entrevistas"].sort(key=lambda x: datetime.strptime(x["fecha"], "%Y-%m-%d %H:%M"), reverse=True)
+            # Ordenar entrevistas de la más nueva a la más antigua
+            data["entrevistas"].sort(key=lambda x: x["fecha"], reverse=True)
 
             self.data_context = data
-            self.logger.info(f"Datos de reportes cargados: {len(data['entrevistas'])} entrevistas.")
+            self.logger.info(f"Datos de reportes cargados: {len(data['entrevistas'])} entrevistas, {sum(len(frags) for frags in data['por_entrevista'].values())} fragmentos totales.")
             return True
 
         except Exception as e:
             self.logger.error(f"Error cargando datos de reportes: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             self.data_context = {"entrevistas": [], "por_entrevista": {}, "videos": []}
             return False
 
-    def _calcular_promedios_globales(self, emociones_data):
-        """Helper: Calcula promedios de intensidades para las 7 emociones."""
-        emociones = ["ira", "disgusto", "miedo", "felicidad", "sorpresa", "tristeza", "neutral"]
+    def _calcular_promedios_globales(self, fragmentos_data):
+        """Helper: Calcula promedios de intensidades para las 7 emociones desde los fragmentos."""
+        emociones = ["angry", "contempt", "disgust", "fear", "happy", "sad", "surprise"]
         totales = {emo: 0 for emo in emociones}
         count = 0
-        for info_preg in emociones_data.values():
-            intens = info_preg.get("intensidad", {})
+        
+        for datos_fragmento in fragmentos_data.values():
+            intensidad = datos_fragmento.get("intensidad", {})
             for emo in emociones:
-                totales[emo] += intens.get(emo, 0)
+                totales[emo] += intensidad.get(emo, 0)
             count += 1
+        
         if count == 0:
             return {emo: 0 for emo in emociones}
         return {emo: totales[emo] / count for emo in emociones}
+
+    def _obtener_fecha_entrevista(self, entrevista_dir):
+        """Obtener fecha de la entrevista desde el directorio o archivos."""
+        try:
+            # Intentar obtener fecha del primer fragmento
+            for json_file in entrevista_dir.glob("*.json"):
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                fecha_str = data.get("analisis", {}).get("fecha_analisis", "")
+                if fecha_str:
+                    # Convertir de formato ISO a legible
+                    fecha_dt = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
+                    return fecha_dt.strftime("%Y-%m-%d %H:%M")
+        except:
+            pass
+        
+        # Fallback: usar fecha de modificación del directorio
+        return datetime.fromtimestamp(entrevista_dir.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+
+    def populate_entrevista_selector(self):
+        """Poblar el selector de entrevistas con datos ordenados."""
+        self.entrevista_selector.clear()  # Limpiar si hay items previos
+        
+        if not self.data_context.get("entrevistas"):
+            self.logger.warning("No hay entrevistas para poblar en el selector")
+            return
+            
+        for ent in self.data_context.get("entrevistas", []):
+            self.entrevista_selector.addItem(ent["nombre"])
+        
+        self.logger.info(f"Selector poblado con {self.entrevista_selector.count()} entrevistas")
 
     # ------------------------------------------------------------------
     # 🔹 Verificar carpetas
@@ -253,13 +301,13 @@ class ReportesMainWindow(QMainWindow):
         main_layout.addWidget(stack_frame, stretch=1)
         
         # Agregar subpantallas al stack (descomenta cuando crees las clases)
-        # self.resumen_screen = ResumenScreen(logger=self.logger, data_context=self.data_context, parent=self)
-        # self.detalle_screen = DetalleScreen(logger=self.logger, data_context=self.data_context, parent=self)
-        # self.export_screen = ExportScreen(logger=self.logger, data_context=self.data_context, parent=self)
-        # self.stack.addWidget(self.resumen_screen)
-        # self.stack.addWidget(self.detalle_screen)
-        # self.stack.addWidget(self.export_screen)
-        # self.stack.setCurrentWidget(self.resumen_screen)  # Default a resumen
+        self.resumen_screen = ResumenScreen(logger=self.logger, data_context=self.data_context, parent=self)
+        self.detalle_screen = DetalleScreen(logger=self.logger, data_context=self.data_context, parent=self)
+        self.export_screen = ExportScreen(logger=self.logger, data_context=self.data_context, parent=self)
+        self.stack.addWidget(self.resumen_screen)
+        self.stack.addWidget(self.detalle_screen)
+        self.stack.addWidget(self.export_screen)
+        self.stack.setCurrentWidget(self.resumen_screen)  # Default a resumen
 
         # Placeholder si no hay datos
         if not self.data_context.get("entrevistas"):
@@ -395,10 +443,18 @@ class ReportesMainWindow(QMainWindow):
     def on_entrevista_selected(self, text):
         """Maneja cambio de entrevista seleccionada."""
         if text:
-            self.current_entrevista_id = text.split()[-1]  # Extrae ID como "Entrevista 2025-10-05_005" -> "2025-10-05_005"
-            # Actualiza sub-screens: self.resumen_screen.update_data(self.data_context, self.current_entrevista_id)
-            self.logger.info(f"Entrevista seleccionada: {self.current_entrevista_id}")
-
+            # Extraer ID de "Entrevista 2025-10-05_005" -> "2025-10-05_005"
+            parts = text.split()
+            if len(parts) >= 2:
+                self.current_entrevista_id = parts[-1]
+                
+                # Actualizar todas las pantallas
+                self.resumen_screen.update_data(self.data_context, self.current_entrevista_id)
+                self.detalle_screen.update_data(self.data_context, self.current_entrevista_id)
+                self.export_screen.update_data(self.data_context, self.current_entrevista_id)
+                
+                self.logger.info(f"Entrevista seleccionada: {self.current_entrevista_id}")
+    
     def create_menu_frame(self):
         """Crear frame para menú inferior con diseño de huerto moderno"""
         menu_frame = QFrame()
@@ -501,9 +557,9 @@ class ReportesMainWindow(QMainWindow):
         btn_volver.setStyleSheet(button_styles)
 
         # Conectar botones (descomenta cuando tengas screens)
-        # btn_resumen.clicked.connect(lambda: self.stack.setCurrentWidget(self.resumen_screen))
-        # btn_detalle.clicked.connect(lambda: self.stack.setCurrentWidget(self.detalle_screen))
-        # btn_export.clicked.connect(lambda: self.stack.setCurrentWidget(self.export_screen) or self.exportar_reporte())
+        btn_resumen.clicked.connect(lambda: self.stack.setCurrentWidget(self.resumen_screen))
+        btn_detalle.clicked.connect(lambda: self.stack.setCurrentWidget(self.detalle_screen))
+        btn_export.clicked.connect(lambda: self.stack.setCurrentWidget(self.export_screen) or self.exportar_reporte())
         btn_volver.clicked.connect(self.volver_menu_principal)
 
         # Agregar botones al layout

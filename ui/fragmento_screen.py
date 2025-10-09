@@ -57,8 +57,16 @@ class FragmentoMainWindow(QMainWindow):
                 border: none;
             }}
         """)
-
+        
+        # 🔹 INICIALIZAR LOS PATHS PRIMERO
+        self.Originales_path = Path("data/videos_originales")
+        self.Fragmentos_path = Path("data/fragmentos") 
+        self.Marcas_path = Path("data/marcas")
+        self.Resultados_path = Path("data/resultados")
+        
+        # Verificar que los directorios existen
         self._check_directories()
+
         self.setup_ui()
 
     def load_fragmento_data(self):

@@ -12,6 +12,8 @@ from pathlib import Path
 import time
 from datetime import datetime
 
+from ui.interviewee_screen import IntervieweeScreen
+
 from classes.entrevista import Entrevista
 from classes.entrevista_preguntas import EntrevistaPreguntas
 from classes.marca import Marca
@@ -21,18 +23,26 @@ from video_io.video import obtener_capturador, CapturadorVideo
 
 # ---- Bridge Python ↔ JS ----
 class DataBridge(QObject):
-    updateData = Signal(dict)  # Señal que envía datos al JS
+    updateData = Signal(dict)  # ya existente
+    updatePregunta = Signal(str, int)  # categoría, índice de pregunta
 
-    @Slot(int, int, int, int)
     def setValues(self, humedad, temperatura, lluvia, viento):
-        """Señal desde Python para actualizar la interfaz JS"""
-        print(f"Enviando valores desde Python: humedad={humedad}, temperatura={temperatura}, lluvia={lluvia}, viento={viento}")
         self.updateData.emit({
             "humedad": humedad,
             "temperatura": temperatura,
             "lluvia": lluvia,
             "viento": viento
         })
+
+    def on_update_data(self, data):
+        """Reenviar los datos recibidos desde controls.html al entrevistado"""
+        if hasattr(self, "entrevistado_window"):
+            self.entrevistado_window.on_update_data(data)
+            
+    @Slot(str, int)
+    def setPregunta(self, categoria, pregunta_idx):
+        """Señal para actualizar la pregunta del entrevistado"""
+        self.updatePregunta.emit(categoria, pregunta_idx)
 
 
 class InterviewScreen(QWidget):
@@ -41,6 +51,7 @@ class InterviewScreen(QWidget):
         self.setWindowTitle("Entrevista UX - Campesinas")
         self.resize(1400, 800)
 
+        
         # Core logic
         self.entrevista = None
         self.preguntas = EntrevistaPreguntas()
@@ -60,6 +71,15 @@ class InterviewScreen(QWidget):
         self.pregunta_iniciada = False
         self.pregunta_finalizada = False
 
+        # Inicializar bridge y estructura de webviews antes de crear la ventana del entrevistado
+        self.bridge = DataBridge()
+        self.webviews = {}
+
+        # Crear y mostrar la ventana del entrevistado pasando el mismo bridge
+        self.entrevistado_window = IntervieweeScreen(self.bridge)
+        self.entrevistado_window.show()
+        
+        
         layout = QHBoxLayout(self)
 
         # Cronómetro
@@ -98,10 +118,9 @@ class InterviewScreen(QWidget):
         self.txt_comentarios.setPlaceholderText("Notas / comentarios...")
         left_layout.addWidget(self.txt_comentarios)
 
-        # Panel de controles
+        # Panel de controles (usar self.bridge ya inicializado)
         self.controls_view = QWebEngineView()
         channel_controls = QWebChannel(self.controls_view.page())
-        self.bridge = DataBridge()
         channel_controls.registerObject("bridge", self.bridge)
         self.controls_view.page().setWebChannel(channel_controls)
         controls_path = Path("ui/entrevista_ui/controls.html").resolve()
@@ -120,31 +139,9 @@ class InterviewScreen(QWidget):
         self.lbl_video.setStyleSheet("background: black; color: white;")
         right_layout.addWidget(self.lbl_video, 3)
 
-        # Tab con interfaces HTML
-        self.tabs = QTabWidget()
-        self.webviews = {}
-        self.carta_ids = ["carta-semaforo", "carta-visuales", "carta-tabla"]
-        self.tab_names = ["Semáforo", "Elementos Visuales", "Tabla"]
-
-        for i, carta_id in enumerate(self.carta_ids):
-            view = QWebEngineView()
-            channel = QWebChannel(view.page())
-            channel.registerObject("bridge", self.bridge)
-            view.page().setWebChannel(channel)
-            tarjetas_path = Path("ui/entrevista_ui/tarjetas.html").resolve()
-            print(f"Cargando tarjetas.html para pestaña {self.tab_names[i]} desde: {tarjetas_path}")
-            if not tarjetas_path.exists():
-                QMessageBox.critical(self, "Error", f"No se encontró el archivo: {tarjetas_path}")
-            view.load(QUrl.fromLocalFile(str(tarjetas_path)))
-            # Ejecutar mostrarCarta al cargar la pestaña
-            view.loadFinished.connect(lambda ok, idx=i, cid=carta_id: self.mostrar_carta(idx, cid) if ok else print(f"Error cargando pestaña {self.tab_names[idx]}"))
-            self.webviews[i] = view
-            self.tabs.addTab(view, self.tab_names[i])
-
-        right_layout.addWidget(self.tabs, 2)
         layout.addLayout(right_layout, 5)
 
-        # Conectar la señal updateData a un slot para reenviar
+        # Conectar la señal updateData a un slot para reenviar (bridge ya inicializado)
         self.bridge.updateData.connect(self.on_update_data)
 
         # Eventos
@@ -165,25 +162,6 @@ class InterviewScreen(QWidget):
 
         self.actualizar_pregunta()
 
-    @Slot(dict)
-    def on_update_data(self, data):
-        """Reenviar los datos recibidos desde controls.html a todas las vistas"""
-        print("on_update_data recibido en Python:", data)
-        
-        # Actualizar los controles (sincronización visual)
-        self.controls_view.page().runJavaScript("actualizarDisplays();")
-
-        # Actualizar todas las tarjetas
-        for view in self.webviews.values():
-            view.page().runJavaScript(
-                f"actualizarTodo({data['humedad']}, {data['temperatura']}, {data['lluvia']}, {data['viento']})"
-            )
-
-    def mostrar_carta(self, tab_index, carta_id):
-        """Ejecuta la función JS mostrarCarta en la pestaña correspondiente."""
-        print(f"Ejecutando mostrarCarta('{carta_id}') en pestaña {self.tab_names[tab_index]}")
-        self.webviews[tab_index].page().runJavaScript(f"mostrarCarta('{carta_id}')")
-
     def mostrar_frame(self):
         ret, frame = self.cap.read()
         if ret:
@@ -203,6 +181,11 @@ class InterviewScreen(QWidget):
         minutos = self.tiempo_inicio // 60
         segundos = self.tiempo_inicio % 60
         self.lbl_cronometro.setText(f"{minutos:02d}:{segundos:02d}")
+    
+    def on_update_data(self, data):
+        """Reenviar los datos recibidos desde controls.html al entrevistado"""
+        if hasattr(self, "entrevistado_window") and self.entrevistado_window:
+            self.entrevistado_window.on_update_data(data)
         
     def toggle_grabacion(self):
         if not self.is_recording:
@@ -376,6 +359,9 @@ class InterviewScreen(QWidget):
                 self.categoria_idx = len(self.categorias) - 1
                 self.pregunta_idx = len(preguntas_cat)
         self.actualizar_pregunta()
+        print("se prepara el envio")
+        self.bridge.setPregunta(cat, self.pregunta_idx)
+        print("se envio")
         # Reset estados y estilos para la nueva pregunta
         self.pregunta_iniciada = False
         self.pregunta_finalizada = False
