@@ -444,7 +444,7 @@ class App(QMainWindow):
             self.hide()
             
             # Crear y mostrar la ventana del módulo de fragmentos
-            self.fragmento_window = FragmentoMainWindow(parent=self)
+            self.fragmento_window = FragmentoMainWindow(parent=self,logger=self.logger)
             self.fragmento_window.show()
         except Exception as e:
             self.logger.error(f"Error al abrir módulo de fragmentos: {e}")
@@ -520,6 +520,19 @@ class App(QMainWindow):
             "⚡ Configuración del Sistema", 
             "Accediendo al panel de configuración avanzada de AGRIOT..."
         )
+        try:
+            from ui.config_screen import ConfigMainWindow
+            
+            # Ocultar la ventana principal
+            self.hide()
+            
+            # Crear y mostrar la ventana del módulo de fragmentos
+            self.config_window = ConfigMainWindow(parent=self,logger=self.logger)
+            self.config_window.show()
+        except Exception as e:
+            self.logger.error(f"Error al abrir módulo de configuracion: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el módulo de configuracion: {e}")
+
     
     def open_reporte(self):
         """Generar análisis y reportes"""
