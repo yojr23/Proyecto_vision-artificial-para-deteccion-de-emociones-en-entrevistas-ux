@@ -1374,9 +1374,8 @@ def test_generar_fragmento():
 - **Extensibilidad** mediante interfaces abstractas y patrones de diseño
 - **Multiplataforma** con abstracciones para captura de video/audio
 
-El sistema demuestra un **cumplimiento de SOLID del 84%** (8.4/10) con áreas de mejora identificadas en segregación de interfaces y extracción de servicios adicionales.
+El sistema demuestra un **cumplimiento de SOLID del 84%** 
 
-**Calificación Técnica General: 8.5/10**
 
 ---
 
