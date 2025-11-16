@@ -14,9 +14,7 @@ fpdf2>=2.4
 PyAudio>=0.2.11
 
 # Dependencias opcionales (actívalas solo si las necesitas)
-# TensorFlow se usa condicionalmente en algunas partes del código para ML/analisis
-# Instálalo solo si realmente vas a usar esas funciones (puede ser pesado)
-# tensorflow>=2.6,<3.0
+# TensorFlow/Mediapipe ahora viven en requirements-ml.txt
 
 # Herramientas de desarrollo (opcional)
 # black

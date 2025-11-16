@@ -251,12 +251,14 @@ venv\Scripts\activate  # Windows
 # Instalar dependencias base
 pip install -r requirements.txt
 
-# Instalar TensorFlow (opcional, solo si se usará análisis)
-pip install tensorflow>=2.6,<3.0
-
-# Instalar MediaPipe (requerido para análisis)
-pip install mediapipe
+# Activar las dependencias de análisis (TensorFlow, MediaPipe, h5py)
+# ⚠️ Requiere Python 3.8-3.10. Si usas otra versión, instala pyenv y selecciona 3.8.10.
+pip install -r requirements-ml.txt
 ```
+
+> ℹ️ Desde noviembre 2025 el módulo de análisis valida automáticamente que estés usando
+> Python 3.8–3.10 y que `tensorflow`, `mediapipe` y `h5py` estén instalados. Si falta
+> alguno verás un mensaje con los comandos `pip` necesarios en lugar de un fallo genérico.
 
 #### Ejecución
 ```bash
@@ -1381,4 +1383,3 @@ El sistema demuestra un **cumplimiento de SOLID del 84%**
 
 *Documentación generada para proyecto_ux - AGRIOT UX Platform*
 *Fecha: 2025*
-

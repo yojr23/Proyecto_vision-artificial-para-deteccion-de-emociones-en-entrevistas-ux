@@ -16,6 +16,7 @@ import traceback
 
 # Importar clase de análisis
 from classes.analisis import Analisis
+from utils.dependencies import DependencyError
 
 
 class AnalysisThread(QThread):
@@ -46,6 +47,12 @@ class AnalysisThread(QThread):
             try:
                 analizador = Analisis(self.modelo_path)
                 self.log_message.emit(f"✅ Modelo cargado: {self.modelo_path.name}")
+            except DependencyError as dep_err:
+                self.error_occurred.emit(
+                    "❌ Dependencias faltantes para el módulo de análisis:\n"
+                    f"{dep_err}"
+                )
+                return
             except Exception as e:
                 self.error_occurred.emit(f"❌ Error al cargar el modelo: {str(e)}")
                 return

@@ -14,7 +14,7 @@ from .utils.buttons import ModernButton
 from .utils.footer import AnimatedFooter
 from .utils.styles import (
     ColorPalette, GradientStyles, CommonStyles, 
-    MessageBoxStyles, LayoutSettings, FontSettings
+    MessageBoxStyles, LayoutSettings, FontSettings, ShadowEffects
 )
 
 from ui.analisis_screens.analisis_info_screen import AnalisisInfoScreen
@@ -201,9 +201,9 @@ class AnalisisMainWindow(QMainWindow):
                     stop:1 rgba(240, 255, 240, 0.95));
                 border-radius: 25px;
                 border: 3px solid {ColorPalette.LIGHT_GREEN};
-                box-shadow: 0 8px 32px rgba(34, 139, 34, 0.3);
             }}
         """)
+        ShadowEffects.apply_green_shadow(stack_frame, blur=45, offset_y=18, opacity=80)
         stack_layout = QVBoxLayout(stack_frame)
         stack_layout.setContentsMargins(25, 25, 25, 25)
         self.stack = QStackedWidget()
@@ -247,9 +247,9 @@ class AnalisisMainWindow(QMainWindow):
                 border-radius: 30px;
                 border: 3px solid rgba(255, 255, 255, 0.3);
                 padding: 25px;
-                box-shadow: 0 6px 25px rgba(34, 139, 34, 0.4);
             }}
         """)
+        ShadowEffects.apply_green_shadow(header_frame, blur=40, offset_y=14, opacity=90)
         header_layout = QVBoxLayout(header_frame)
         header_layout.setSpacing(12)
         header_layout.setContentsMargins(30, 20, 30, 20)
@@ -318,9 +318,9 @@ class AnalisisMainWindow(QMainWindow):
                 border-radius: 25px;
                 border: 3px solid {ColorPalette.LIGHT_GREEN};
                 padding: 25px;
-                box-shadow: 0 5px 20px rgba(34, 139, 34, 0.25);
             }}
         """)
+        ShadowEffects.apply_shadow(menu_frame, blur=35, offset_y=12, color=(34, 139, 34, 60))
         menu_layout = QHBoxLayout(menu_frame)
         menu_layout.setAlignment(Qt.AlignCenter)
         menu_layout.setSpacing(25)
@@ -345,7 +345,6 @@ class AnalisisMainWindow(QMainWindow):
                     stop:0 rgba(255, 255, 255, 0.9),
                     stop:1 rgba(240, 255, 240, 0.8));
                 border: 2px solid #7cb342;
-                box-shadow: 0 4px 15px rgba(124, 179, 66, 0.2);
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -353,7 +352,6 @@ class AnalisisMainWindow(QMainWindow):
                     stop:1 rgba(220, 240, 220, 0.9));
                 border: 2px solid #4caf50;
                 color: #0d47a1;
-                box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
             }
             QPushButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -378,7 +376,6 @@ class AnalisisMainWindow(QMainWindow):
                     stop:0.7 #3d8b40,
                     stop:1 #357a38);
                 border: 2px solid #2e7d32;
-                box-shadow: 0 5px 18px rgba(76, 175, 80, 0.5);
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -388,7 +385,6 @@ class AnalisisMainWindow(QMainWindow):
                     stop:1 #448b48);
                 border: 2px solid #388e3c;
                 color: #f1f8e9;
-                box-shadow: 0 7px 22px rgba(92, 184, 96, 0.6);
             }
             QPushButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,

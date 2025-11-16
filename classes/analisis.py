@@ -1,11 +1,11 @@
-from tensorflow.keras.models import load_model
 import cv2
 import numpy as np
 import logging
 from pathlib import Path
 from collections import defaultdict
-import mediapipe as mp
 import traceback
+
+from utils.dependencies import ensure_analysis_dependencies, DependencyError
 
 
 
@@ -36,8 +36,12 @@ class Analisis:
 
         # Intentar cargar el modelo de forma robusta
         try:
+            ensure_analysis_dependencies()
             self._load_model()
             self.logger.info("Modelo cargado exitosamente.")
+        except DependencyError as dep_err:
+            self.logger.error(f"Dependencias faltantes para análisis: {dep_err}")
+            raise
         except Exception as e:
             self.logger.error(f"Error al cargar el modelo: {e}")
             # Propagar un RuntimeError con información útil

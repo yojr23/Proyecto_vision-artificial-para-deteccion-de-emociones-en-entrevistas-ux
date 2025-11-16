@@ -147,6 +147,24 @@ class ShadowEffects:
         shadow.setYOffset(offset_y)
         shadow.setColor(QColor(34, 139, 34, opacity))
         return shadow
+    
+    @staticmethod
+    def apply_shadow(widget, blur=20, offset_x=0, offset_y=8, color=(0, 0, 0, 30)):
+        """Aplica una sombra genérica al widget (helper para evitar CSS no soportado)."""
+        if widget is None:
+            return None
+        shadow = ShadowEffects.get_drop_shadow(blur=blur, offset_x=offset_x, offset_y=offset_y, color=color)
+        widget.setGraphicsEffect(shadow)
+        return shadow
+    
+    @staticmethod
+    def apply_green_shadow(widget, blur=25, offset_y=10, opacity=100):
+        """Aplica una sombra verdosa al widget."""
+        if widget is None:
+            return None
+        shadow = ShadowEffects.get_green_shadow(blur=blur, offset_y=offset_y, opacity=opacity)
+        widget.setGraphicsEffect(shadow)
+        return shadow
 
 class AnimationSettings:
     """Configuraciones para animaciones"""
